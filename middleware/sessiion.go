@@ -16,6 +16,7 @@ func SessionCreate(email string, role string, c *gin.Context) {
 		})
 	}
 }
+
 func AuthMiddleware(role string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)

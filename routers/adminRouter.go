@@ -22,7 +22,7 @@ func AdminRouter(r *gin.RouterGroup) {
 	r.POST("/products/add_products", controller.AddProducts)
 	r.PATCH("products/edit_products/:ID", controller.EditProducts)
 	r.DELETE("products/delete_products/:ID", controller.DeleteProducts)
-
+	r.POST("/upload", controller.UploadProductImage)
 	//category managment
 	r.GET("/categories", controller.CategoryList)
 	r.POST("/categories/add_category", controller.AddCategory)
