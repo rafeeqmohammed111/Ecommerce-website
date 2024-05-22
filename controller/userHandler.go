@@ -10,7 +10,6 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	// "golang.org/x/crypto/bcrypt"
 )
 
 var LogJs models.Users
@@ -27,9 +26,23 @@ func GetAllProducts(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"products": products})
-}
+	var showallproducts []gin.H
 
+	for _, p := range products {
+		showallproduct := gin.H{
+			"ID":         p.ID,
+			"p_name":     p.Name,
+			"p_price":    p.Price,
+			"p_size":     p.Size,
+			"p_colour":   p.Color,
+			"p_quantity": p.Quantity,
+			"p_image":    p.ImagePath,
+		}
+		showallproducts = append(showallproducts, showallproduct)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"products": showallproducts})
+}
 
 func UserSignUp(c *gin.Context) {
 	// var newUser models.Users
@@ -152,8 +165,6 @@ func ResendOtp(c *gin.Context) {
 	}
 
 }
-
-
 
 func UserLogin(c *gin.Context) {
 

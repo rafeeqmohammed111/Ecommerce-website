@@ -12,7 +12,7 @@ import (
 )
 
 func AdminPage(c *gin.Context) {
-	c.JSON(200, gin.H{"message": "welcome admin page"})
+	c.JSON(200, gin.H{"message": "Welcome to the admin page"})
 }
 
 func AdminLogin(c *gin.Context) {
@@ -22,35 +22,29 @@ func AdminLogin(c *gin.Context) {
 	}
 	err := c.ShouldBindJSON(&LogJs)
 	if err != nil {
-		c.JSON(501, gin.H{"error": "error binding data"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Error binding data"})
 		return
 	}
 
 	if LogJs.Username == "rafeeqmohammed111" && LogJs.Password == "rafeeq@123" {
-
 		SessionCreation(LogJs.Username, "admin", c)
-
-		c.JSON(202, gin.H{"message": "succesfully login"})
+		c.JSON(http.StatusAccepted, gin.H{"message": "Successfully logged in"})
 		return
 	} else {
-		c.JSON(501, gin.H{"error": "invalid username or password"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid username or password"})
 	}
 }
 
-// func CheckSession(c *gin.Context) {
-// 	session := sessions.Default(c)
-// 	username := session.Get("admin")
-// 	if username != nil {
-// 		role := session.Get("role")
-// 		c.JSON(200, gin.H{
-// 			"massage":  "user is authenticated",
-// 			"username": username,
-// 			"role":     role,
-// 		})
-// 	} else {
-// 		c.JSON(401, gin.H{"error": "User is not authenticated"})
-// 	}
-// }
+func AdminLogout(c *gin.Context) {
+	session := sessions.Default(c)
+	session.Clear() // Clear all session data
+	err := session.Save()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log out"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Successfully logged out"})
+}
 
 func SessionCreation(email string, role string, c *gin.Context) {
 	session := sessions.Default(c)
@@ -58,23 +52,18 @@ func SessionCreation(email string, role string, c *gin.Context) {
 	session.Set("role", role)
 	err := session.Save()
 	if err != nil {
-		c.JSON(500, gin.H{
-			"Error": "faild to create the session ",
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to create the session",
 		})
-	} else {
 		return
 	}
-
 }
 
 func UserList(c *gin.Context) {
 	var user_management []models.Users
 	initializer.DB.Order("ID").Find(&user_management)
 
-	// Create a slice to hold the user data
 	var userList []gin.H
-
-	// Iterate through the users and append their details to the userList slice
 	for _, val := range user_management {
 		user := gin.H{
 			"ID":       val.ID,
@@ -86,73 +75,72 @@ func UserList(c *gin.Context) {
 		}
 		userList = append(userList, user)
 	}
-
-	// Send a single JSON response with the entire user list
 	c.JSON(200, userList)
-
 }
+
 func EditUserDetails(c *gin.Context) {
 	var userEdit models.Users
 	id := c.Param("ID")
 	err := initializer.DB.First(&userEdit, id)
 	if err.Error != nil {
-		c.JSON(500, gin.H{"error": "can't find user"})
+		c.JSON(500, gin.H{"error": "Can't find user"})
 	} else {
 		err := c.ShouldBindJSON(&userEdit)
 		if err != nil {
-			c.JSON(500, gin.H{"error": "failed to bindinng data"})
+			c.JSON(500, gin.H{"error": "Failed to bind data"})
 		} else {
 			if err := initializer.DB.Save(&userEdit).Error; err != nil {
-				c.JSON(500, gin.H{"error": "failed to update details"})
+				c.JSON(500, gin.H{"error": "Failed to update details"})
 			} else {
 				c.JSON(200, gin.H{"message": "User updated successfully"})
 			}
 		}
 	}
 }
+
 func BlockUser(c *gin.Context) {
 	var blockUser models.Users
 	id := c.Param("ID")
 	err := initializer.DB.First(&blockUser, id)
 	if err.Error != nil {
-		c.JSON(500, gin.H{"error": "can't find user"})
+		c.JSON(500, gin.H{"error": "Can't find user"})
 	} else {
 		if blockUser.Blocking {
 			blockUser.Blocking = false
-			c.JSON(200, "user blocked")
+			c.JSON(200, gin.H{"message": "User unblocked"})
 		} else {
 			blockUser.Blocking = true
-			c.JSON(200, "user unblocked")
+			c.JSON(200, gin.H{"message": "User blocked"})
 		}
 		if err := initializer.DB.Save(&blockUser).Error; err != nil {
-			c.JSON(500, "failed to block/unblock user")
+			c.JSON(500, gin.H{"error": "Failed to block/unblock user"})
 		}
 	}
 }
+
 func DeleteUser(c *gin.Context) {
 	var deleteUser models.Users
 	id := c.Param("ID")
 	err := initializer.DB.First(&deleteUser, id)
 	if err.Error != nil {
-		c.JSON(500, gin.H{"error": "can't find user"})
+		c.JSON(500, gin.H{"error": "Can't find user"})
 	} else {
 		err := initializer.DB.Delete(&deleteUser).Error
 		if err != nil {
-			c.JSON(500, "failed to delete user")
+			c.JSON(500, gin.H{"error": "Failed to delete user"})
 		} else {
-			c.JSON(200, "user deleted successfully")
+			c.JSON(200, gin.H{"message": "User deleted successfully"})
 		}
 	}
 }
 
-//-------------------product managment-----------------
+//-------------------product management-----------------
 
 func ProductList(c *gin.Context) {
 	var productList []models.Products
-	// var checkCategory []models.Categories
 	err := initializer.DB.Joins("Category").Find(&productList).Error
 	if err != nil {
-		c.JSON(500, "failed to fetch details")
+		c.JSON(500, gin.H{"error": "Failed to fetch details"})
 	} else {
 		for _, val := range productList {
 			if !val.Category.Blocking {
@@ -176,41 +164,30 @@ func ProductList(c *gin.Context) {
 }
 
 func UploadProductImage(c *gin.Context) {
-	// Parse the multipart form
 	file, err := c.FormFile("p_imagepath")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to get file"})
 		return
 	}
-	// Ensure the directory exists
 	imageDir := "./images/"
 	if err := os.MkdirAll(imageDir, os.ModePerm); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create directory"})
 		return
 	}
-
-	// Define the file path
 	imagePath := filepath.Join(imageDir, file.Filename)
-
-	// Save the uploaded file to the specified path
 	if err := c.SaveUploadedFile(file, imagePath); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload photo"})
 		return
 	}
-
-	// Extract the product ID from the form data
 	productID := c.PostForm("product_id")
 	if productID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Product ID is required"})
 		return
 	}
-
-	// Update the product with the new image path
 	if err := initializer.DB.Model(&models.Products{}).Where("id = ?", productID).Update("image_path", imagePath).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update product"})
 		return
 	}
-
 	c.JSON(http.StatusOK, gin.H{"message": "File uploaded successfully", "file_path": imagePath})
 }
 
@@ -235,7 +212,6 @@ func AddProducts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Product created successfully. Please upload the product image.", "productId": addProduct.ID})
-
 }
 
 func EditProducts(c *gin.Context) {
@@ -243,41 +219,33 @@ func EditProducts(c *gin.Context) {
 	id := c.Param("ID")
 	err := initializer.DB.First(&editProducts, id)
 	if err.Error != nil {
-		c.JSON(500, gin.H{"error": "can't find Product"})
+		c.JSON(500, gin.H{"error": "Can't find product"})
 	} else {
 		err := c.ShouldBindJSON(&editProducts)
 		if err != nil {
-			c.JSON(500, "failed to bild details")
+			c.JSON(500, "Failed to bind details")
 		} else {
 			if err := initializer.DB.Save(&editProducts).Error; err != nil {
-				c.JSON(500, "failed to edit details")
+				c.JSON(500, "Failed to edit details")
+			} else {
+				c.JSON(200, "Successfully edited product")
 			}
-			c.JSON(200, "successfully edited product")
 		}
 	}
 }
+
 func DeleteProducts(c *gin.Context) {
 	var deleteProducts models.Products
 	id := c.Param("ID")
 	err := initializer.DB.First(&deleteProducts, id)
 	if err.Error != nil {
-		c.JSON(500, gin.H{"error": "can't find Product"})
+		c.JSON(500, gin.H{"error": "Can't find product"})
 	} else {
 		err := initializer.DB.Delete(&deleteProducts).Error
 		if err != nil {
-			c.JSON(500, "failed to delete product")
+			c.JSON(500, "Failed to delete product")
 		} else {
-			c.JSON(200, "product deleted successfully")
+			c.JSON(200, "Product deleted successfully")
 		}
 	}
-}
-func AdminLogout(c *gin.Context) {
-	session := sessions.Default(c)
-	session.Clear() // Clear all session data
-	err := session.Save()
-	if err != nil {
-		c.JSON(500, gin.H{"error": "failed to logout"})
-		return
-	}
-	c.JSON(200, gin.H{"message": "successfully logged out"})
 }

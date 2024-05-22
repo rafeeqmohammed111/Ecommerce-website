@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"net/http"
+
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
@@ -17,19 +19,15 @@ func SessionCreate(email string, role string, c *gin.Context) {
 	}
 }
 
-func AuthMiddleware(role string) gin.HandlerFunc {
+func AdminAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		session := sessions.Default(c)
-		sessionRole := session.Get("role")
-
-		if sessionRole != role {
-			c.JSON(401, gin.H{
-				"message": "Unauthorized",
-			})
+		role := session.Get("role")
+		if role == nil || role != "admin" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			c.Abort()
 			return
 		}
-
 		c.Next()
 	}
 }

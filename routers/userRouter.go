@@ -8,8 +8,10 @@ import (
 
 func UserGroup(r *gin.RouterGroup) {
 	r.GET("/", controller.LoadingPage)
+	r.GET("/user/getproducts", controller.GetAllProducts)
 	r.POST("/user/signup", controller.UserSignUp)
 	r.POST("/user/login", controller.UserLogin)
+	r.POST("/user/logout", controller.UserLogin)
 	r.POST("/user/signup/otp", controller.OtpCheck)
 	r.POST("/user/signup/resend_otp", controller.ResendOtp)
 
