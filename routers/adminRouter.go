@@ -9,10 +9,13 @@ import (
 )
 
 func AdminRouter(r *gin.RouterGroup) {
-	r.Use(middleware.AdminAuthMiddleware()) // Apply the middleware to all routes in this group
+	// Apply the middleware to all routes in this group
 
 	r.GET("/", controller.AdminPage)
 	r.POST("/login", controller.AdminLogin)
+
+	r.Use(middleware.AdminAuthMiddleware())
+
 	r.POST("/logout", controller.AdminLogout)
 
 	// User management
