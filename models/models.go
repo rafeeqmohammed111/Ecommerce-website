@@ -7,14 +7,15 @@ import (
 )
 
 type Users struct {
-	ID       uint   `json:"userid" gorm:"primaryKey"`
-	Name     string `gorm:"not null" json:"name"`
-	Username string `gorm:"not null" json:"username"`
-	Email    string `gorm:"not null" json:"email"`
-	Password string `gorm:"not null" json:"password"`
-	Gender   string `json:"gender"`
-	Phone    int    `gorm:"not null" json:"phone"`
-	Blocking bool   `json:"blocking"`
+	ID        uint      `json:"userid" gorm:"primaryKey"`
+	Name      string    `gorm:"not null" json:"name"`
+	Username  string    `gorm:"not null" json:"username"`
+	Email     string    `gorm:"not null" json:"email"`
+	Password  string    `gorm:"not null" json:"password"`
+	Gender    string    `json:"gender"`
+	Phone     int       `gorm:"not null" json:"phone"`
+	Blocking  bool      `json:"blocking"`
+	Addresses []Address `gorm:"foreignkey:UserID"`
 }
 
 type OtpMail struct {
@@ -45,3 +46,14 @@ type Category struct {
 	Category_description string `gorm:"not null" json:"category_description"`
 	Blocking             bool   `gorm:"not null" json:"category_blocking"`
 }
+type Address struct {
+	ID      uint   `gorm:"primary_key"`
+	Address string `gorm:"size:255"`
+	City    string `gorm:"size:255"`
+	State   string `gorm:"size:255"`
+	Country string `gorm:"size:255"`
+	Pincode int
+	Phone   int
+	UserID  uint // Foreign key to link to the User model
+}
+

@@ -1,4 +1,4 @@
-package controller
+package user
 
 import (
 	"fmt"
@@ -125,46 +125,46 @@ func OtpCheck(c *gin.Context) {
 	c.JSON(http.StatusAccepted, gin.H{"message": "User created successfully"})
 }
 
-func ResendOtp(c *gin.Context) {
-	var otpStore models.OtpMail
-	otp = handler.GenerateOtp()
+// func ResendOtp(c *gin.Context) {
+// 	var otpStore models.OtpMail
+// 	otp = handler.GenerateOtp()
 
-	err := handler.SendOtp(newUser.Email, otp)
-	if err != nil {
-		c.JSON(500, "failed to send otp")
-		return
-	}
-	c.JSON(200, "otp send to mail  "+otp)
+// 	err := handler.SendOtp(newUser.Email, otp)
+// 	if err != nil {
+// 		c.JSON(500, "failed to send otp")
+// 		return
+// 	}
+// 	c.JSON(200, "otp send to mail  "+otp)
 
-	// saving/upd deatails in the database
+// 	// saving/upd deatails in the database
 
-	result := initializer.DB.First(&otpStore, "email=?", newUser.Email)
-	if result.Error != nil {
-		otpStore = models.OtpMail{
-			Otp:       otp,
-			Email:     newUser.Email,
-			CreatedAt: time.Now(),
-			ExpireAt:  time.Now().Add(60 * time.Second),
-		}
+// 	result := initializer.DB.First(&otpStore, "email=?", newUser.Email)
+// 	if result.Error != nil {
+// 		otpStore = models.OtpMail{
+// 			Otp:       otp,
+// 			Email:     newUser.Email,
+// 			CreatedAt: time.Now(),
+// 			ExpireAt:  time.Now().Add(60 * time.Second),
+// 		}
 
-		err := initializer.DB.Create(&otpStore)
-		if err.Error != nil {
-			c.JSON(500, gin.H{"error": "failed to save otp details"})
-			return
-		}
+// 		err := initializer.DB.Create(&otpStore)
+// 		if err.Error != nil {
+// 			c.JSON(500, gin.H{"error": "failed to save otp details"})
+// 			return
+// 		}
 
-	} else {
-		err := initializer.DB.Model(&otpStore).Where("email=?", newUser.Email).Updates(models.OtpMail{
-			Otp:      otp,
-			ExpireAt: time.Now().Add(15 * time.Second),
-		})
-		if err.Error != nil {
-			c.JSON(500, "failed too update data")
-			return
-		}
-	}
+// 	} else {
+// 		err := initializer.DB.Model(&otpStore).Where("email=?", newUser.Email).Updates(models.OtpMail{
+// 			Otp:      otp,
+// 			ExpireAt: time.Now().Add(15 * time.Second),
+// 		})
+// 		if err.Error != nil {
+// 			c.JSON(500, "failed too update data")
+// 			return
+// 		}
+// 	}
 
-}
+// }
 
 func UserLogin(c *gin.Context) {
 
@@ -206,8 +206,11 @@ func UserLogin(c *gin.Context) {
 	session := sessions.Default(c)
 	session.Set("user_email", userFromDB.Email)
 	session.Set("user_id", userFromDB.ID)
+	session.Set("role", "User") 
 	err := session.Save()
 	if err != nil {
+		fmt.Println("Failed to create session:", err)
+		  session.Set("role", "User") 
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create session"})
 		return
 	}
