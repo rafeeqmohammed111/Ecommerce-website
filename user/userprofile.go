@@ -14,7 +14,7 @@ func UserProfile(c *gin.Context) {
 	session := sessions.Default(c)
 
 	fmt.Printf("Session ID: %v\n", session.Get("user_id"))
-    fmt.Printf("Session role: %v\n", session.Get("role"))
+	fmt.Printf("Session role: %v\n", session.Get("role"))
 	userId := session.Get("user_id")
 	var user models.Users
 	if err := initializer.DB.Preload("Addresses").Find(&user, userId).Error; err != nil {
@@ -81,7 +81,7 @@ func AddressStore(c *gin.Context) {
 
 	c.JSON(201, gin.H{
 		"status":  "success",
-		"message": "new address added successfully",
+		"message": "New address added successfully",
 	})
 }
 
@@ -149,7 +149,7 @@ func AddressDelete(c *gin.Context) {
 
 	c.JSON(200, gin.H{
 		"status":  "success",
-		"message": "address deleted successfully",
+		"message": "Address deleted successfully",
 	})
 }
 
