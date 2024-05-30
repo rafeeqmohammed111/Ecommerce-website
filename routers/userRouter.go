@@ -32,4 +32,7 @@ func UserGroup(r *gin.RouterGroup) {
 	r.PATCH("/user/cart/:ID/remove", middleware.AuthMiddleware(roleuser), user.CartProductRemove)
 	r.DELETE("/user/cart/:ID/delete", middleware.AuthMiddleware(roleuser), user.CartProductDelete)
 
+	//============================= filter products ====================
+	r.GET("/user/filter", user.SearchProduct)
+
 }
