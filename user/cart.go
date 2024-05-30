@@ -152,7 +152,10 @@ func CartStore(c *gin.Context) {
 func CartProductAdd(c *gin.Context) {
 	var cartStore models.Cart
 	var productStock models.Products
-	userId := c.GetUint("userid")
+	session := sessions.Default(c)
+	userid := session.Get("user_id")
+	fmt.Println("=================", userid)
+	// userId := c.GetUint("userid")
 	id := c.Param("ID")
 	if err := initializer.DB.First(&productStock, id).Error; err != nil {
 		c.JSON(404, gin.H{
@@ -162,7 +165,7 @@ func CartProductAdd(c *gin.Context) {
 		})
 	}
 
-	err := initializer.DB.Where("user_id=? AND product_id=?", userId, id).First(&cartStore).Error
+	err := initializer.DB.Where("user_id=? AND product_id=?", userid, id).First(&cartStore).Error
 	if err != nil {
 		c.JSON(404, gin.H{
 			"status": "Fail",
@@ -173,7 +176,7 @@ func CartProductAdd(c *gin.Context) {
 		cartStore.Quantity += 1
 		if uint((productStock.Quantity)) >= cartStore.Quantity {
 			if cartStore.Quantity <= 5 {
-				err := initializer.DB.Where("user_id=? AND product_id=?", userId, cartStore.ProductId).Save(&cartStore)
+				err := initializer.DB.Where("user_id=? AND product_id=?", userid, cartStore.ProductId).Save(&cartStore)
 				if err.Error != nil {
 					c.JSON(400, gin.H{
 						"status": "Fail",
@@ -220,9 +223,12 @@ func CartProductAdd(c *gin.Context) {
 // @Router /cart/{ID}/remove [patch]
 func CartProductRemove(c *gin.Context) {
 	var cartStore models.Cart
-	userId := c.GetUint("userid")
+	session := sessions.Default(c)
+	userid := session.Get("user_id")
+	fmt.Println("=================", userid)
+	// userId := c.GetUint("userid")
 	id := c.Param("ID")
-	err := initializer.DB.Where("user_id=? AND product_id=?", userId, id).First(&cartStore).Error
+	err := initializer.DB.Where("user_id=? AND product_id=?", userid, id).First(&cartStore).Error
 	if err != nil {
 		c.JSON(404, gin.H{
 			"status": "Fail",
@@ -232,7 +238,7 @@ func CartProductRemove(c *gin.Context) {
 	} else {
 		cartStore.Quantity -= 1
 		if cartStore.Quantity >= 1 {
-			err := initializer.DB.Where("user_id=? AND product_id=?", userId, cartStore.ProductId).Save(&cartStore)
+			err := initializer.DB.Where("user_id=? AND product_id=?", userid, cartStore.ProductId).Save(&cartStore)
 			if err.Error != nil {
 				c.JSON(400, gin.H{
 					"status": "Fail",
@@ -269,9 +275,12 @@ func CartProductRemove(c *gin.Context) {
 // @Router /cart/{ID}/delete [delete]
 func CartProductDelete(c *gin.Context) {
 	var ProductRemove models.Cart
-	userId := c.GetUint("userid")
+	session := sessions.Default(c)
+	userid := session.Get("user_id")
+	fmt.Println("=================", userid)
+	// userId := c.GetUint("userid")
 	id := c.Param("ID")
-	if err := initializer.DB.Where("product_id=? AND user_id=?", id, userId).First(&ProductRemove).Error; err != nil {
+	if err := initializer.DB.Where("product_id=? AND user_id=?", id, userid).First(&ProductRemove).Error; err != nil {
 		c.JSON(404, gin.H{
 			"status": "Fail",
 			"error":  "Product not added to cart",
