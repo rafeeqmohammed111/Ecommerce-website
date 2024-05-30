@@ -24,11 +24,14 @@ import (
 func CartView(c *gin.Context) {
 	var cartView []models.Cart
 	var cartShow []gin.H
-	userId := c.GetUint("userid")
-	var totalAmount = 0.0
-	var count = 0.0
-	// var totalDiscount = 0.0
-	if err := initializer.DB.Where("user_id=?", userId).Joins("Product").Find(&cartView).Error; err != nil {
+	session := sessions.Default(c)
+	userid := session.Get("user_id")
+	// userid := c.GetUint("userid")
+	var totalAmount float64
+	var count float64
+
+	// Fetch cart items with associated products
+	if err := initializer.DB.Where("user_id = ?", userid).Joins("Product").Find(&cartView).Error; err != nil {
 		c.JSON(400, gin.H{
 			"status": "Fail",
 			"error":  "failed to fetch data",
@@ -36,19 +39,27 @@ func CartView(c *gin.Context) {
 		})
 		return
 	}
+
+	// Process each cart item
 	for _, v := range cartView {
-		price := int(v.Quantity) * int(v.Product.Price)
-		totalAmount += float64(price)
+		price := float64(v.Quantity) * float64(v.Product.Price)
+		totalAmount += price
 		count += 1
 		cartShow = append(cartShow, gin.H{
 			"product": gin.H{
-				"name":  v.Product.Name,
-				"price": v.Product.Price,
+				"name":        v.Product.Name,
+				"price":       v.Product.Price,
+				"size":        v.Product.Size,
+				"color":       v.Product.Color,
+				"description": v.Product.Description,
+				"image_path":  v.Product.ImagePath,
 			},
 			"quantity": v.Quantity,
 		})
 	}
-	if totalAmount == 0 {
+
+	// Handle empty cart case
+	if count == 0 {
 		c.JSON(200, gin.H{
 			"status":  "Success",
 			"message": "No product in your cart.",
@@ -57,6 +68,8 @@ func CartView(c *gin.Context) {
 		})
 		return
 	}
+
+	// Return cart data
 	c.JSON(200, gin.H{
 		"data":          cartShow,
 		"totalProducts": count,
