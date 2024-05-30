@@ -16,7 +16,6 @@ func UserGroup(r *gin.RouterGroup) {
 	r.POST("/user/login", user.UserLogin)
 	r.POST("/user/logout", user.UserLogin)
 	r.POST("/user/signup/otp", user.OtpCheck)
-	
 
 	// user profile
 
@@ -25,4 +24,12 @@ func UserGroup(r *gin.RouterGroup) {
 	r.PATCH("/user/address/:ID", middleware.AuthMiddleware(roleuser), user.AddressEdit)
 	r.DELETE("/user/address/:ID", middleware.AuthMiddleware(roleuser), user.AddressDelete)
 	r.PATCH("/user/edit", middleware.AuthMiddleware(roleuser), user.EditUserProfile)
+
+	//================= User cart ======================
+	r.GET("/user/cart", middleware.AuthMiddleware(roleuser), user.CartView)
+	r.POST("/user/cart/:ID", middleware.AuthMiddleware(roleuser), user.CartStore)
+	r.PATCH("/user/cart/:ID/add", middleware.AuthMiddleware(roleuser), user.CartProductAdd)
+	r.PATCH("/user/cart/:ID/remove", middleware.AuthMiddleware(roleuser), user.CartProductRemove)
+	r.DELETE("/user/cart/:ID/delete", middleware.AuthMiddleware(roleuser), user.CartProductDelete)
+
 }

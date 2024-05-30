@@ -52,6 +52,7 @@ type addressUpdate struct {
 func AddressStore(c *gin.Context) {
 	session := sessions.Default(c)
 	userId := session.Get("user_id")
+	fmt.Println("====================================", userId)
 	var addressBind addressUpdate
 	if err := c.BindJSON(&addressBind); err != nil {
 		c.JSON(400, gin.H{

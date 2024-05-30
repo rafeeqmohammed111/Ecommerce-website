@@ -27,7 +27,6 @@ type OtpMail struct {
 }
 type Products struct {
 	gorm.Model
-
 	Name        string `gorm:"unique" json:"p_name"`
 	Price       uint   `json:"p_price"`
 	Size        string `json:"p_size"`
@@ -56,4 +55,11 @@ type Address struct {
 	Phone   int
 	UserID  uint // Foreign key to link to the User model
 }
-
+type Cart struct {
+	Id        uint
+	UserId    uint `json:"userid"`
+	User      Users
+	ProductId int `json:"product_id"`
+	Product   Products
+	Quantity  uint
+}
