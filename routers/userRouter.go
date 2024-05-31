@@ -16,6 +16,10 @@ func UserGroup(r *gin.RouterGroup) {
 	r.POST("/user/login", user.UserLogin)
 	r.POST("/user/logout", user.UserLogin)
 	r.POST("/user/signup/otp", user.OtpCheck)
+// 
+r.POST("/user/forgotpass", user.ForgotUserCheck)
+	r.POST("/user/forgotpass/otp", user.ForgotOtpCheck)
+	r.PATCH("/user/new-password", user.NewPasswordSet)
 
 	// user profile
 
