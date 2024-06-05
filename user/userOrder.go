@@ -118,7 +118,7 @@ func CancelOrder(c *gin.Context) {
 		}
 		//========== check coupon condition ============
 		var couponRemove models.Coupon
-		if orderAmount.CouponCode != "" { 
+		if orderAmount.CouponCode != "" {
 			if err := initializer.DB.First(&couponRemove, "code=?", orderAmount.CouponCode).Error; err != nil {
 				c.JSON(404, gin.H{
 					"status": "Fail",
