@@ -11,16 +11,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CartView retrieves and displays the items in the user's cart along with total amount and discounts.
+// CartView retrieves and displays the items in the user's cart along with total amount .
 // @Summary View cart items
-// @Description Retrieves and displays the items in the user's cart along with total amount and discounts.
-// @Tags Cart
-// @Accept json
-// @Produce json
-// @Security ApiKeyAuth
-// @Success 200 {json} JSON Response  "successful operation"
-// @Failure 400 {json} JSON  ErrorResponse "Invalid input request"
-// @Router /cart [get]
+// @Description Retrieves and displays the items in the user's cart along with total amount.
+
 func CartView(c *gin.Context) {
 	var cartView []models.Cart
 	var cartShow []gin.H
@@ -47,6 +41,7 @@ func CartView(c *gin.Context) {
 		count += 1
 		cartShow = append(cartShow, gin.H{
 			"product": gin.H{
+				"id":          v.Product.ID,
 				"name":        v.Product.Name,
 				"price":       v.Product.Price,
 				"size":        v.Product.Size,

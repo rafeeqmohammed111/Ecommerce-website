@@ -24,4 +24,10 @@ func LoadDatabase() {
 	DB.AutoMigrate(&models.Category{})
 	DB.AutoMigrate(&models.Address{})
 	DB.AutoMigrate(&models.Cart{})
+	DB.AutoMigrate(&models.Order{})
+	DB.AutoMigrate(&models.OrderItems{})
+	DB.AutoMigrate(&models.Wallet{})
+	DB.AutoMigrate(&models.PaymentDetails{})
+	DB.AutoMigrate(&models.Offer{})
+	DB.AutoMigrate(&models.Coupon{})
 }

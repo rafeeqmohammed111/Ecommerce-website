@@ -100,3 +100,4 @@ func ProductDetails(c *gin.Context) {
 		"data":   productDetails,
 	})
 }
+// rating shop review needed

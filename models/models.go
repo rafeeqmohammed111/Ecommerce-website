@@ -63,3 +63,57 @@ type Cart struct {
 	Product   Products
 	Quantity  uint
 }
+type Order struct {
+	Id                 uint
+	UserId             int `json:"orderId"`
+	User               Users
+	AddressId          int `json:"orderAddress"`
+	Address            Address
+	CouponCode         string `json:"orderCoupon"`
+	OrderPaymentMethod string `json:"orderPayment"`
+	OrderAmount        float64
+	ShippingCharge     float32
+	OrderDate          time.Time
+	OrderUpdate        time.Time
+}
+type OrderItems struct {
+	Id                uint `gorm:"primary key"`
+	OrderId           uint
+	Order             Order
+	ProductId         int
+	Product           Products
+	Quantity          uint
+	SubTotal          float64
+	OrderStatus       string
+	OrderCancelReason string
+}
+type Wallet struct {
+	gorm.Model
+	User_id int
+	User    Users
+	Balance float64
+}
+type Coupon struct {
+	ID              uint      `gorm:"primarykey"`
+	Code            string    `gorm:"unique" json:"code"`
+	Discount        float64   `json:"discount"`
+	CouponCondition int       `json:"condition"`
+	ValidFrom       time.Time `json:"valid_from"`
+	ValidTo         time.Time `json:"valid_to"`
+}
+type Offer struct {
+	Id           uint
+	ProductId    int       `json:"productid"`
+	SpecialOffer string    `json:"offer"`
+	Discount     float64   `json:"discount"`
+	ValidFrom    time.Time `json:"valid_from"`
+	ValidTo      time.Time `json:"valid_to"`
+}
+type PaymentDetails struct {
+	gorm.Model
+	PaymentId     string
+	Order_Id      string
+	Receipt       uint
+	PaymentStatus string
+	PaymentAmount float64
+}
