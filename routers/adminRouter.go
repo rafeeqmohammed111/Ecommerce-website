@@ -36,4 +36,9 @@ func AdminRouter(r *gin.RouterGroup) {
 	r.PATCH("/categories/edit_category/:ID", admin.EditCategories)
 	r.DELETE("/categories/delete_category/:ID", admin.DeleteCategories)
 	r.PATCH("/categories/block_category/:ID", admin.BlockCategory)
+
+	// **********order management***********
+	r.GET("/orders", admin.AdminOrderView)
+	r.PATCH("/ordercancel/:ID", admin.AdminCancelOrder)
+	r.PATCH("/orderstatus/:ID", admin.AdminOrderStatus)
 }
