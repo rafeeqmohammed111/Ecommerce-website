@@ -139,23 +139,8 @@ func CancelOrder(c *gin.Context) {
 		}
 	}
 
-	//========== check coupon condition ============
-	// var couponRemove models.Coupon
-	// if order.CouponCode != "" {
-	// 	if err := initializer.DB.First(&couponRemove, "code=?", order.CouponCode).Error; err != nil {
-	// 		c.JSON(404, gin.H{
-	// 			"status": "Fail",
-	// 			"error":  "can't find coupon code",
-	// 			"code":   404,
-	// 		})
-	// 		tx.Rollback()
-	// 	}
-	// }
-	// if couponRemove.CouponCondition > int(order.OrderAmount) {
-	// 	order.OrderAmount += couponRemove.Discount
-	// 	order.OrderAmount -= float64(orderItems[i].SubTotal)
-	// 	order.CouponCode = ""
-	// }
+	//========== check coupon condition have to add ============
+
 
 	if err := tx.Save(&order).Error; err != nil {
 		log.Println("Error saving order:", err)
@@ -168,29 +153,7 @@ func CancelOrder(c *gin.Context) {
 		return
 	}
 
-	// var walletUpdate models.Wallet
-	// if err := tx.First(&walletUpdate, "user_id = ?", order.UserId).Error; err != nil {
-	// 	log.Println("Error fetching wallet:", err)
-	// 	c.JSON(501, gin.H{
-	// 		"status": "Fail",
-	// 		"error":  "failed to fetch wallet details",
-	// 		"code":   501,
-	// 	})
-	// 	tx.Rollback()
-	// 	return
-	// } else {
-	// 	walletUpdate.Balance += order.OrderAmount
-	// 	if err := tx.Save(&walletUpdate).Error; err != nil {
-	// 		log.Println("Error saving wallet:", err)
-	// 		c.JSON(500, gin.H{
-	// 			"status": "Fail",
-	// 			"error":  "failed to update wallet balance",
-	// 			"code":   500,
-	// 		})
-	// 		tx.Rollback()
-	// 		return
-	// 	}
-	// }
+// wallet later
 
 	if err := tx.Commit().Error; err != nil {
 		c.JSON(201, gin.H{

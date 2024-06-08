@@ -21,7 +21,7 @@ import (
 // @Secure ApiKeyAuth
 // @Param payment formData string true "Payment Method"
 // @Param address formData string true  "Address ID"
-// @Param coupon formData string false "Coupon Code"
+
 // @Success 200 {json} SuccessResponse
 // @Failure 400 {json} ErrorResponse
 // @Router /checkout [post]
@@ -75,7 +75,7 @@ func CheckOut(c *gin.Context) {
 		totalAmount += Amount
 	}
 
-	// ================== coupon validation ===============
+	// ================== cpv ===============
 	couponCode = c.Request.FormValue("coupon")
 	var couponCheck models.Coupon
 	var userLimitCheck models.Order
