@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Page</title>
+</head>
+<body>
+  <h1>Please Complete the Payment</h1>
+  <form id="orderForm">
+    <input type="text" id="orderIdInput" placeholder="Enter Order ID">
+    <button type="submit">Fetch Order ID</button>
+  </form>
+
+  <button id="payButton" style="display: none;  width: 90px; height: 40px; margin-top: 30px; margin-left: 50px; background: greenyellow; border-radius: 10%;">Pay Now</button>
+
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    function initiatePayment(orderId) {
+      var options = {
+        key: 'rzp_test_CuoceDh2rleHvj', 
+        amount: 10000, 
+        currency: 'INR',
+        name: 'E COMMERCE WEBSITE',
+        description: 'Payment for Order',
+        order_id: orderId,
+        handler: function(response) {
+          var paymentId = response.razorpay_payment_id;
+          var signature = response.razorpay_signature;
+          var orderId = response.razorpay_order_id;
+
+          sendPaymentDetails(orderId, paymentId, signature);
+        },
+        prefill: {
+          name: 'Customer Name',
+          email: 'customer@example.com',
+          contact: '9946898185'
+        },
+        theme: {
+          color: '#4CFE09' 
+        }
+      };
+
+      var rzp = new Razorpay(options);
+      rzp.open();
+    }
+    //================== send payment details to backend=============
+    function sendPaymentDetails(orderId, paymentId, signature) {
+      fetch('http://localhost:8080/payment/confirm', {
+        method: 'POST',
+        headers: {  
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+              order_id: orderId,
+              payment_id: paymentId,
+              signature: signature
+          }),
+      })
+      .then(response => response.json())
+      .then(data => console.log(data))
+      .catch(error => console.error('Error:', error));
+    }
+
+    //============= Event listener for form submission==============
+    document.getElementById('orderForm').addEventListener('submit', function(event) {
+      event.preventDefault();
+
+      var orderId = document.getElementById('orderIdInput').value;
+
+      //============== Check if orderId is fetched successfully============
+      if (orderId) {
+        alert('Order ID fetched successfully: ' + orderId);
+        document.getElementById('payButton').style.display = 'block';
+      } else {
+        alert('Error fetching order ID.');
+      }
+    });
+    //============== event listener for submit ====================
+    document.getElementById('payButton').addEventListener('click', function() {
+      var orderId = document.getElementById('orderIdInput').value;
+      initiatePayment(orderId);
+    });
+  </script>
+</body>
+</html>

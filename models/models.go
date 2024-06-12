@@ -117,3 +117,10 @@ type PaymentDetails struct {
 	PaymentStatus string
 	PaymentAmount float64
 }
+type Wishlist struct {
+	Id        uint
+	UserId    int
+	User      Users
+	ProductId int
+	Product   Products
+}

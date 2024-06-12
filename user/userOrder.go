@@ -139,8 +139,32 @@ func CancelOrder(c *gin.Context) {
 		}
 	}
 
-	//========== check coupon condition have to add ============
+	// Update the order's total amount after cancellation
+	orderAmount := order.OrderAmount
+	for _, item := range orderItems {
+		if item.OrderStatus == "cancelled" {
+			orderAmount -= item.SubTotal
+		}
+	}
+	order.OrderAmount = orderAmount
 
+	//========== check coupon condition ============
+	if order.CouponCode != "" {
+		var couponRemove models.Coupon
+		if err := initializer.DB.First(&couponRemove, "code=?", order.CouponCode).Error; err != nil {
+			c.JSON(404, gin.H{
+				"status": "Fail",
+				"error":  "can't find coupon code",
+				"code":   404,
+			})
+			tx.Rollback()
+			return
+		}
+		if couponRemove.CouponCondition > int(order.OrderAmount) {
+			order.OrderAmount += couponRemove.Discount
+			order.CouponCode = ""
+		}
+	}
 
 	if err := tx.Save(&order).Error; err != nil {
 		log.Println("Error saving order:", err)
@@ -153,7 +177,20 @@ func CancelOrder(c *gin.Context) {
 		return
 	}
 
-// wallet later
+	// Update wallet balance if necessary
+	var walletUpdate models.Wallet
+	if err := tx.First(&walletUpdate, "user_id=?", order.UserId).Error; err != nil {
+		c.JSON(501, gin.H{
+			"status": "Fail",
+			"error":  "failed to fetch wallet details",
+			"code":   501,
+		})
+		tx.Rollback()
+		return
+	} else {
+		walletUpdate.Balance += order.OrderAmount
+		tx.Save(&walletUpdate)
+	}
 
 	if err := tx.Commit().Error; err != nil {
 		c.JSON(201, gin.H{
@@ -169,4 +206,49 @@ func CancelOrder(c *gin.Context) {
 			"data":    "cancelled",
 		})
 	}
+}
+
+
+// router not created***********************
+func UserOrderStatus(c *gin.Context) {
+	session := sessions.Default(c)
+	userID := session.Get("user_id").(uint) // Assuming user_id is stored as uint in the session
+
+	var orders []models.Order
+	if err := initializer.DB.Where("user_id = ?", userID).Find(&orders).Error; err != nil {
+		c.JSON(400, gin.H{
+			"status": "Fail",
+			"error":  "Failed to fetch orders",
+			"code":   400,
+		})
+		return
+	}
+
+	var orderStatuses []gin.H
+	for _, order := range orders {
+		var orderItems []models.OrderItems
+		if err := initializer.DB.Where("order_id = ?", order.Id).Find(&orderItems).Error; err != nil {
+			c.JSON(400, gin.H{
+				"status": "Fail",
+				"error":  "Failed to fetch order items",
+				"code":   400,
+			})
+			return
+		}
+
+		for _, item := range orderItems {
+			orderStatuses = append(orderStatuses, gin.H{
+				"orderId":      order.Id,
+				"itemId":       item.Id,
+				"productId":    item.ProductId,
+				"orderStatus":  item.OrderStatus,
+				"cancelReason": item.OrderCancelReason,
+			})
+		}
+	}
+
+	c.JSON(200, gin.H{
+		"status":  "success",
+		"orders":  orderStatuses,
+	})
 }

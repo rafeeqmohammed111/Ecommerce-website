@@ -12,6 +12,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// wallet need to **********
+
 // Place the order based on cart items with given payment system and shipping method
 // @Summery  place an order
 // @Description place an order by given cart items, calculate total price of all products in the shopping cart, generate a unique OrderID, place the order with given payment method
@@ -60,10 +62,13 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
-	// ============= stock check and amount calc ===================
+	// ============= stock check and amount calc =================== need to add the discount
+	var Amount float64
 	var totalAmount float64
 	for _, val := range cartItems {
-		Amount := float64(val.Product.Price) * float64(val.Quantity)
+
+		Amount = float64(val.Product.Price) * float64(val.Quantity)
+
 		if val.Quantity > uint(val.Product.Quantity) {
 			c.JSON(400, gin.H{
 				"status": "Fail",
@@ -75,7 +80,7 @@ func CheckOut(c *gin.Context) {
 		totalAmount += Amount
 	}
 
-	// ================== cpv ===============
+	// ================== coupon validation ===============
 	couponCode = c.Request.FormValue("coupon")
 	var couponCheck models.Coupon
 	var userLimitCheck models.Order
@@ -133,6 +138,61 @@ func CheckOut(c *gin.Context) {
 			"code":        202,
 		})
 		return
+	}
+
+	// ================ wallet checking ======================
+	if paymentMethod == "WALLET" {
+		var walletCheck models.Wallet
+		if err := initializer.DB.First(&walletCheck, "user_id=?", userID).Error; err != nil {
+			c.JSON(404, gin.H{
+				"status": "Fail",
+				"error":  "failed to fetch wallet ",
+				"code":   404,
+			})
+			return
+		} else if walletCheck.Balance < totalAmount {
+			c.JSON(202, gin.H{
+				"status": "Fail",
+				"error":  "insufficient balance in wallet",
+				"code":   202,
+			})
+			return
+		}
+
+	}
+	// if payment method is online redirect to payment actions ===============
+	if paymentMethod == "ONLINE" {
+		order_id, err := PaymentHandler(orderID, int(totalAmount))
+		if err != nil {
+			c.JSON(500, gin.H{
+				"status": "Fail",
+				"error":  "Failed to create orderId",
+				"code":   500,
+			})
+			tx.Rollback()
+			return
+		} else {
+			c.JSON(200, gin.H{
+				"status":      "Success",
+				"message":     "please complete the payment",
+				"totalAmount": totalAmount,
+				"orderId":     order_id,
+			})
+			err := tx.Create(&models.PaymentDetails{
+				Order_Id:      order_id,
+				Receipt:       uint(orderID),
+				PaymentStatus: "not done",
+				PaymentAmount: totalAmount,
+			}).Error
+			if err != nil {
+				c.JSON(401, gin.H{
+					"status": "Fail",
+					"error":  "failed to store payment data",
+					"code":   401,
+				})
+				tx.Rollback()
+			}
+		}
 	}
 
 	// ================= insert order details into database ===================
@@ -218,4 +278,5 @@ func CheckOut(c *gin.Context) {
 		"message":     "Order will arrive within 4 days",
 	})
 }
-//  offer discount and online payment methord logics has to impliment later 
+
+//  offer discount and online payment methord logics has to impliment later

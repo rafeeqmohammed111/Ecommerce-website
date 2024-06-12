@@ -1,6 +1,7 @@
 package routers
 
 import (
+	"net/http"
 	"project/middleware"
 	"project/user"
 
@@ -38,11 +39,24 @@ func UserGroup(r *gin.RouterGroup) {
 	//============================= filter products ====================
 	r.GET("/user/filter", user.SearchProduct)
 
-// =======================check out ====================
-r.POST("/checkout", middleware.AuthMiddleware(roleuser), user.CheckOut)
-r.GET("/orders", middleware.AuthMiddleware(roleuser), user.OrderView)
-r.GET("/orderdetails/:ID", middleware.AuthMiddleware(roleuser), user.OrderView)
-r.PATCH("/ordercancel/:ID", middleware.AuthMiddleware(roleuser), user.CancelOrder)
+	// =======================check out ====================
+	r.POST("/checkout", middleware.AuthMiddleware(roleuser), user.CheckOut)
+	r.GET("/orders", middleware.AuthMiddleware(roleuser), user.OrderView)
+	r.GET("/orderdetails/:ID", middleware.AuthMiddleware(roleuser), user.OrderView)
+	r.PATCH("/ordercancel/:ID", middleware.AuthMiddleware(roleuser), user.CancelOrder)
+	r.GET("/orderstatus", middleware.AuthMiddleware (roleuser), user.UserOrderStatus)
 
+	// =========================== payment ==========================
+	r.GET("/payment", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "payment.html", nil)
+	})
+	r.POST("/payment/confirm", user.PaymentConfirmation)
+
+	// =========================== wishlist =========================
+	r.GET("/wishlist", middleware.AuthMiddleware(roleuser), user.WishlistProducts)
+	r.POST("/wishlist/:ID", middleware.AuthMiddleware(roleuser), user.WishlistAdd)
+	r.DELETE("/wishlist/:ID", middleware.AuthMiddleware(roleuser), user.WishlistDelete)
+
+	r.GET("/order/invoice/:ID", middleware.AuthMiddleware(roleuser), user.CreateInvoice)
 
 }
