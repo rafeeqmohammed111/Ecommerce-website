@@ -43,21 +43,20 @@ func AdminRouter(r *gin.RouterGroup) {
 	r.PATCH("/orderstatus/:ID", admin.AdminOrderStatus)
 
 	//===================== Coupon managment ====================
-	r.GET("/coupon",  admin.CouponView)
-	r.POST("/coupon",  admin.CouponCreate)
-	r.DELETE("/coupon/:ID",  admin.CouponDelete)
+	r.GET("/coupon", admin.CouponView)
+	r.POST("/coupon", admin.CouponCreate)
+	r.DELETE("/coupon/:ID", admin.CouponDelete)
 
 	// =================== offers management =====================
-	r.GET("/offer", admin.OfferShow)
+	r.GET("/offer/:ID", admin.OfferShow)
 	r.POST("/offer", admin.OfferAdd)
-	r.DELETE("/offer/:ID",  admin.OfferDelete)
+	r.DELETE("/offer/:ID", admin.OfferDelete)
 
 	// ===================== sales report =========================
-	r.GET("/sales/report",  admin.SalesReport)
+	r.GET("/sales/report", admin.SalesReport)
 	r.GET("/sales/report/excel", admin.SalesReportExcel)
 	r.GET("/sales/report/pdf", admin.SalesReportPDF)
 
 	// r.GET("/bestselling", admin.BestSelling)
 
 }
-
