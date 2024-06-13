@@ -104,12 +104,13 @@ type Coupon struct {
 	ValidTo         time.Time `json:"valid_to"`
 }
 type Offer struct {
-	Id           uint
-	ProductId    int       `json:"productid"`
-	SpecialOffer string    `json:"offer"`
-	Discount     float64   `json:"discount"`
-	ValidFrom    time.Time `json:"valid_from"`
-	ValidTo      time.Time `json:"valid_to"`
+    ID           uint      `json:"id"`
+    ProductID    uint      `json:"product_id"`    // Associated Product ID
+    CategoryID   uint      `json:"category_id"`   // Associated Category ID
+    SpecialOffer string    `json:"special_offer"`
+    Discount     float64   `json:"discount"`
+    ValidFrom    time.Time `json:"valid_from"`
+    ValidTo      time.Time `json:"valid_to"`
 }
 type PaymentDetails struct {
 	gorm.Model
@@ -125,4 +126,10 @@ type Wishlist struct {
 	User      Users
 	ProductId int
 	Product   Products
+}
+type SimplifiedProduct struct {
+	ID       uint   `json:"id"`
+	Name     string `json:"name"`
+	Price    uint   `json:"price"`
+	Quantity int    `json:"quantity"`
 }

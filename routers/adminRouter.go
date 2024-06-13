@@ -48,7 +48,7 @@ func AdminRouter(r *gin.RouterGroup) {
 	r.DELETE("/coupon/:ID",  admin.CouponDelete)
 
 	// =================== offers management =====================
-	r.GET("/offer", admin.OfferList)
+	r.GET("/offer", admin.OfferShow)
 	r.POST("/offer", admin.OfferAdd)
 	r.DELETE("/offer/:ID",  admin.OfferDelete)
 
