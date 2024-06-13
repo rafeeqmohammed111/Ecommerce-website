@@ -44,7 +44,8 @@ func UserGroup(r *gin.RouterGroup) {
 	r.GET("/orders", middleware.AuthMiddleware(roleuser), user.OrderView)
 	r.GET("/orderdetails/:ID", middleware.AuthMiddleware(roleuser), user.OrderView)
 	r.PATCH("/ordercancel/:ID", middleware.AuthMiddleware(roleuser), user.CancelOrder)
-	r.GET("/orderstatus", middleware.AuthMiddleware (roleuser), user.UserOrderStatus)
+	r.GET("/orderstatus", middleware.AuthMiddleware(roleuser), user.UserOrderStatus)
+	r.GET("/wallet",middleware.AuthMiddleware(roleuser), user.FetchCanceledOrdersAndUpdateWallet)
 
 	// =========================== payment ==========================
 	r.GET("/payment", func(c *gin.Context) {

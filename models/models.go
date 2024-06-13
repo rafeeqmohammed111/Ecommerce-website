@@ -72,7 +72,9 @@ type Order struct {
 	CouponCode         string `json:"orderCoupon"`
 	OrderPaymentMethod string `json:"orderPayment"`
 	OrderAmount        float64
+	TotalAmount        float64
 	ShippingCharge     float32
+	OrderStatus        string `json:"order_status"`
 	OrderDate          time.Time
 	OrderUpdate        time.Time
 }
@@ -89,7 +91,7 @@ type OrderItems struct {
 }
 type Wallet struct {
 	gorm.Model
-	User_id int
+	User_id  int `gorm:"primary key"`
 	User    Users
 	Balance float64
 }
