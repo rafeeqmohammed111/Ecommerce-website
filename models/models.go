@@ -37,6 +37,7 @@ type Products struct {
 	Status      bool   `json:"p_blocking"`
 	CategoryId  int    `json:"category_id"`
 	Category    Category
+	ID          uint `gorm:"primary_key"`
 }
 type Category struct {
 	gorm.Model
@@ -64,7 +65,7 @@ type Cart struct {
 	Quantity  uint
 }
 type Order struct {
-	Id                 uint
+	Id                 string
 	UserId             int `json:"orderId"`
 	User               Users
 	AddressId          int `json:"orderAddress"`
@@ -77,10 +78,14 @@ type Order struct {
 	OrderStatus        string `json:"order_status"`
 	OrderDate          time.Time
 	OrderUpdate        time.Time
+	CouponID           *uint
+	Coupon             *Coupon
+	OrderItems         []OrderItems
+	CreatedAt          time.Time
 }
 type OrderItems struct {
 	Id                uint `gorm:"primary key"`
-	OrderId           uint
+	OrderId           string
 	Order             Order
 	ProductId         int
 	Product           Products
@@ -88,12 +93,16 @@ type OrderItems struct {
 	SubTotal          float64
 	OrderStatus       string
 	OrderCancelReason string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
 }
 type Wallet struct {
 	gorm.Model
 	User_id  int `gorm:"primary key"`
-	User    Users
-	Balance float64
+	User     Users
+	Balance  float64
+	Code     string
+	Discount float64
 }
 type Coupon struct {
 	ID              uint      `gorm:"primarykey"`
@@ -104,13 +113,13 @@ type Coupon struct {
 	ValidTo         time.Time `json:"valid_to"`
 }
 type Offer struct {
-    ID           uint      `json:"id"`
-    ProductID    uint      `json:"product_id"`    // Associated Product ID
-    CategoryID   uint      `json:"category_id"`   // Associated Category ID
-    SpecialOffer string    `json:"special_offer"`
-    Discount     float64   `json:"discount"`
-    ValidFrom    time.Time `json:"valid_from"`
-    ValidTo      time.Time `json:"valid_to"`
+	ID           uint      `json:"id"`
+	ProductID    uint      `json:"product_id"`  // Associated Product ID
+	CategoryID   uint      `json:"category_id"` // Associated Category ID
+	SpecialOffer string    `json:"special_offer"`
+	Discount     float64   `json:"discount"`
+	ValidFrom    time.Time `json:"valid_from"`
+	ValidTo      time.Time `json:"valid_to"`
 }
 type PaymentDetails struct {
 	gorm.Model

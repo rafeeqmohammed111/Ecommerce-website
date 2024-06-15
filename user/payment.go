@@ -10,28 +10,33 @@ import (
 	"os"
 	"project/initializer"
 	"project/models"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/razorpay/razorpay-go"
 )
 
-func PaymentHandler(orderId int, amount int) (string, error) {
-
-	client := razorpay.NewClient(os.Getenv("rzp_test_UAOVw4CjxnnGvg"), os.Getenv("OFWmy2E8FctvMGrQfIxeivMF"))
+// PaymentHandler initiates payment with Razorpay
+func PaymentHandler(orderID string, amount float64) (string, error) {
+	client := razorpay.NewClient(os.Getenv("RAZORPAY_KEY"), os.Getenv("RAZORPAY_SECRET"))
 	orderParams := map[string]interface{}{
-		"amount":   amount * 100,
+		"amount":   int(amount * 100), // Razorpay expects amount in paise
 		"currency": "INR",
-		"receipt":  strconv.Itoa(orderId),
+		"receipt":  orderID,
 	}
 	order, err := client.Order.Create(orderParams, nil)
 	if err != nil {
-		return "", errors.New("PAYMENT NOT INITIATED")
+		return "", errors.New("PAYMENT NOT INITIATED: " + err.Error())
 	}
 
-	razorId, _ := order["id"].(string)
-	return razorId, nil
+	razorID, ok := order["id"].(string)
+	if !ok {
+		return "", errors.New("PAYMENT NOT INITIATED: invalid Razorpay order ID")
+	}
+
+	return razorID, nil
 }
+
+// PaymentConfirmation handles Razorpay payment confirmation
 func PaymentConfirmation(c *gin.Context) {
 	var paymentStore models.PaymentDetails
 	var paymentDetails = make(map[string]string)
@@ -43,41 +48,81 @@ func PaymentConfirmation(c *gin.Context) {
 		})
 		return
 	}
-	pd := paymentDetails
-	//============== verify the signature ================
-	err := RazorPaymentVerification(pd["signature"], pd["order_id"], pd["payment_id"])
+
+	// Verify Razorpay payment signature
+	err := RazorPaymentVerification(paymentDetails["signature"], paymentDetails["order_id"], paymentDetails["payment_id"])
 	if err != nil {
-		fmt.Println("-------", err)
+		c.JSON(400, gin.H{
+			"status": "fail",
+			"error":  "Payment verification failed",
+			"code":   400,
+		})
 		return
 	}
-	if err := initializer.DB.First(&paymentStore, "order_id=?", pd["order_id"]).Error; err != nil {
-		fmt.Println("can't find payment details")
+
+	// Fetch order details from the database based on order_id
+	if err := initializer.DB.First(&paymentStore, "order_id=?", paymentDetails["order_id"]).Error; err != nil {
+		c.JSON(404, gin.H{
+			"status": "fail",
+			"error":  "Order details not found",
+			"code":   404,
+		})
 		return
 	}
-	paymentStore.PaymentId = pd["payment_id"]
+
+	// Update payment details in the database
+	paymentStore.PaymentId = paymentDetails["payment_id"]
 	paymentStore.PaymentStatus = "success"
-	initializer.DB.Save(&paymentStore)
-
-	//============ quantity remove ================
-	var productQuantity models.Products
-var productCheck []models.OrderItems
-if err := initializer.DB.Where("order_id=?", paymentStore.Receipt).Find(&productCheck).Error; err != nil {
-	fmt.Println("cant find items")
-}
-
-for _, val := range productCheck {
-	initializer.DB.First(&productQuantity, val.ProductId)
-	productQuantity.Quantity -= int(val.Quantity) // Cast val.Quantity to int
-	if err := initializer.DB.Save(&productQuantity).Error; err != nil {
-		fmt.Println("failed to save updated quantity of products in db")
+	if err := initializer.DB.Save(&paymentStore).Error; err != nil {
+		c.JSON(500, gin.H{
+			"status": "fail",
+			"error":  "Failed to update payment details",
+			"code":   500,
+		})
+		return
 	}
-}
-fmt.Println("payment done, order placed successfully")
+
+	// Update product quantities or any other related operations
+	// Fetch order items and update quantities, etc.
+	var orderItems []models.OrderItems
+	if err := initializer.DB.Where("order_id = ?", paymentDetails["order_id"]).Find(&orderItems).Error; err != nil {
+		c.JSON(500, gin.H{
+			"status": "fail",
+			"error":  "Failed to fetch order items",
+			"code":   500,
+		})
+		return
+	}
+
+	// Example: Update product quantities
+	for _, item := range orderItems {
+		var product models.Products
+		if err := initializer.DB.First(&product, item.ProductId).Error; err != nil {
+			fmt.Printf("Failed to find product with ID %d\n", item.ProductId)
+			continue
+		}
+
+		// Adjust product quantities or other operations
+		product.Quantity -= int(item.Quantity)
+		if err := initializer.DB.Save(&product).Error; err != nil {
+			fmt.Printf("Failed to update product quantity for product ID %d\n", item.ProductId)
+			continue
+		}
+	}
+
+	// Success response
+	c.JSON(200, gin.H{
+		"status":     "success",
+		"message":    "Payment confirmed successfully",
+		"order_id":   paymentDetails["order_id"],
+		"payment_id": paymentDetails["payment_id"],
+	})
 }
 
+// RazorPaymentVerification verifies Razorpay payment signature
 func RazorPaymentVerification(sign, orderId, paymentId string) error {
 	signature := sign
-	secret := os.Getenv("RAZOR_PAY_SECRET")
+	secret := os.Getenv("RAZORPAY_SECRET")
 	data := orderId + "|" + paymentId
 	h := hmac.New(sha256.New, []byte(secret))
 	_, err := h.Write([]byte(data))

@@ -27,6 +27,8 @@ func main() {
 	admin := router.Group("/admin")
 	routers.AdminRouter(admin)
 
+	router.LoadHTMLGlob("templates/*")
+
 	router.Run(":8080")
 
 }

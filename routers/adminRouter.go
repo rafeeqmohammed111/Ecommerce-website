@@ -53,7 +53,7 @@ func AdminRouter(r *gin.RouterGroup) {
 	r.DELETE("/offer/:ID", admin.OfferDelete)
 
 	// ===================== sales report =========================
-	r.GET("/sales/report", admin.SalesReport)
+	r.GET("/sales/report", admin.GenerateReport)
 	r.GET("/sales/report/excel", admin.SalesReportExcel)
 	r.GET("/sales/report/pdf", admin.SalesReportPDF)
 

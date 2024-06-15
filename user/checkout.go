@@ -10,199 +10,137 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	// "github.com/google/uuid"
 )
 
-// wallet need to **********
-
-// Place the order based on cart items with given payment system and shipping method
-// @Summery  place an order
-// @Description place an order by given cart items, calculate total price of all products in the shopping cart, generate a unique OrderID, place the order with given payment method
-// @Tags  Order
-// @Accept multipart/form-data
-// @Produce  json
-// @Secure ApiKeyAuth
-// @Param payment formData string true "Payment Method"
-// @Param address formData string true  "Address ID"
-
-// @Success 200 {json} SuccessResponse
-// @Failure 400 {json} ErrorResponse
-// @Router /checkout [post]
+// CheckOut handles the checkout process for placing an order
 func CheckOut(c *gin.Context) {
 	session := sessions.Default(c)
 	userID := session.Get("user_id").(uint) // Assuming user_id is stored as uint in the session
 
-	couponCode := ""
 	var cartItems []models.Cart
 	initializer.DB.Preload("Product").Where("user_id=?", userID).Find(&cartItems)
 	if len(cartItems) == 0 {
 		c.JSON(404, gin.H{
 			"status":  "Fail",
-			"message": "please add some items to your cart firstly.",
+			"message": "Please add some items to your cart first.",
 			"code":    404,
 		})
 		return
 	}
-	// ============= check if given payment method and address =============
+
+	// Check if given payment method and address are provided
 	paymentMethod := c.Request.PostFormValue("payment")
-	Address, _ := strconv.ParseUint(c.Request.PostFormValue("address"), 10, 64)
-	if paymentMethod == "" || Address == 0 {
+	addressID, err := strconv.Atoi(c.Request.PostFormValue("address"))
+	if err != nil || addressID == 0 {
 		c.JSON(400, gin.H{
 			"status": "Fail",
-			"error":  "Payment Method and Address are required",
-			"code":   400,
-		})
-		return
-	}
-	if paymentMethod != "COD" {
-		c.JSON(400, gin.H{
-			"status": "Fail",
-			"error":  "Only COD payment method is allowed",
+			"error":  "Invalid Address ID or Payment Method",
 			"code":   400,
 		})
 		return
 	}
 
-	// ============= stock check and amount calc =================== need to add the discount
-	var Amount float64
+	// Stock check and amount calculation
 	var totalAmount float64
 	for _, val := range cartItems {
-
-		Amount = float64(val.Product.Price) * float64(val.Quantity)
-
+		amount := float64(val.Product.Price) * float64(val.Quantity)
 		if val.Quantity > uint(val.Product.Quantity) {
 			c.JSON(400, gin.H{
 				"status": "Fail",
-				"error":  "Insufficient stock for product " + val.Product.Name,
+				"error":  fmt.Sprintf("Insufficient stock for product %s", val.Product.Name),
 				"code":   400,
 			})
 			return
 		}
-		totalAmount += Amount
+		totalAmount += amount
 	}
 
-	// ================== coupon validation ===============
-	couponCode = c.Request.FormValue("coupon")
-	var couponCheck models.Coupon
-	var userLimitCheck models.Order
+	// Coupon validation
+	couponCode := c.Request.FormValue("coupon")
 	if couponCode != "" {
-		if err := initializer.DB.First(&userLimitCheck, "coupon_code", couponCode).Error; err == nil {
-			c.JSON(409, gin.H{
-				"status": "Fail",
-				"error":  "Coupon already used",
-				"code":   409,
-			})
-			return
-		}
+		var couponCheck models.Coupon
 		if err := initializer.DB.Where("code=? AND valid_from < ? AND valid_to > ? AND coupon_condition <= ?", couponCode, time.Now(), time.Now(), totalAmount).First(&couponCheck).Error; err != nil {
 			c.JSON(200, gin.H{
-				"error": "Coupon Not valid",
+				"error": "Coupon not valid",
 			})
 			return
-		} else {
-			totalAmount -= couponCheck.Discount
+		}
+		totalAmount -= couponCheck.Discount
+	}
+
+	// Delivery charges
+	var shippingCharge float64
+	if totalAmount < 1000 {
+		shippingCharge = 40
+		totalAmount += shippingCharge
+	}
+
+	// COD checking
+	if paymentMethod == "COD" {
+		if totalAmount > 1000 {
+			c.JSON(202, gin.H{
+				"status":      "Fail",
+				"message":     "Orders greater than 1000 rupees are not eligible for COD",
+				"totalAmount": totalAmount,
+				"code":        202,
+			})
+			return
 		}
 	}
 
-	// ================== order id creation =======================
+	// Generate a unique order ID using UUID and random numeric string
+	// uuidPart := uuid.New().String()
 	const charset = "123456789"
 	randomBytes := make([]byte, 8)
-	_, err := rand.Read(randomBytes)
+	_, err = rand.Read(randomBytes)
 	if err != nil {
-		fmt.Println(err)
+		c.JSON(500, gin.H{
+			"status": "Fail",
+			"error":  "Failed to generate order ID",
+			"code":   500,
+		})
+		return
 	}
-	var orderIdString string
-	for _, b := range randomBytes {
-		orderIdString += string(charset[b%byte(len(charset))])
+	for i, b := range randomBytes {
+		randomBytes[i] = charset[b%byte(len(charset))]
 	}
-	orderID, _ := strconv.Atoi(orderIdString)
+	numericPart := string(randomBytes)
+	// orderID := uuidPart + "-" + numericPart
+	orderID := numericPart
 
-	//================ Start the transaction ===================
+	// Start the transaction
 	tx := initializer.DB.Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
 		}
 	}()
-	// ============== Delivery charges ==============
-	var ShippingCharge float64
-	if totalAmount < 1000 {
-		ShippingCharge = 40
-		totalAmount += ShippingCharge
-	}
-	// ============== COD checking =====================
-	if totalAmount > 1000 {
-		c.JSON(202, gin.H{
-			"status":      "Fail",
-			"message":     "Greater than 1000 rupees should not accept COD",
-			"totalAmount": totalAmount,
-			"code":        202,
-		})
-		return
-	}
 
-	// ================ wallet checking ======================
-	if paymentMethod == "WALLET" {
-		var walletCheck models.Wallet
-		if err := initializer.DB.First(&walletCheck, "user_id=?", userID).Error; err != nil {
-			c.JSON(404, gin.H{
-				"status": "Fail",
-				"error":  "failed to fetch wallet ",
-				"code":   404,
-			})
-			return
-		} else if walletCheck.Balance < totalAmount {
-			c.JSON(202, gin.H{
-				"status": "Fail",
-				"error":  "insufficient balance in wallet",
-				"code":   202,
-			})
-			return
-		}
-
-	}
-	// if payment method is online redirect to payment actions ===============
+	// Handle online payment
 	if paymentMethod == "ONLINE" {
-		order_id, err := PaymentHandler(orderID, int(totalAmount))
+		// fmt.Println("order id : ", orderID)
+		// fmt.Println("total amount : ", totalAmount)
+		_, err := PaymentHandler(orderID, totalAmount)
 		if err != nil {
 			c.JSON(500, gin.H{
 				"status": "Fail",
-				"error":  "Failed to create orderId",
+				"error":  fmt.Sprintf("Failed to create orderId: %v", err),
 				"code":   500,
 			})
 			tx.Rollback()
 			return
-		} else {
-			c.JSON(200, gin.H{
-				"status":      "Success",
-				"message":     "please complete the payment",
-				"totalAmount": totalAmount,
-				"orderId":     order_id,
-			})
-			err := tx.Create(&models.PaymentDetails{
-				Order_Id:      order_id,
-				Receipt:       uint(orderID),
-				PaymentStatus: "not done",
-				PaymentAmount: totalAmount,
-			}).Error
-			if err != nil {
-				c.JSON(401, gin.H{
-					"status": "Fail",
-					"error":  "failed to store payment data",
-					"code":   401,
-				})
-				tx.Rollback()
-			}
 		}
 	}
 
-	// ================= insert order details into database ===================
+	// Insert order details into the database
 	order := models.Order{
-		Id:                 uint(orderID),
+		Id:                 orderID,
 		UserId:             int(userID),
 		OrderPaymentMethod: paymentMethod,
-		AddressId:          int(Address),
+		AddressId:          addressID,
 		OrderAmount:        totalAmount,
-		ShippingCharge:     float32(ShippingCharge),
+		ShippingCharge:     float32(shippingCharge),
 		OrderDate:          time.Now(),
 		CouponCode:         couponCode,
 	}
@@ -216,50 +154,53 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
-	// ============ insert order items into database ==================
+	// Insert order items into the database
 	for _, val := range cartItems {
-		OrderItems := models.OrderItems{
-			OrderId:     uint(orderID),
+		orderItem := models.OrderItems{
+			OrderId:     orderID,
 			ProductId:   val.ProductId,
 			Quantity:    val.Quantity,
 			SubTotal:    float64(val.Product.Price) * float64(val.Quantity),
 			OrderStatus: "pending",
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
 		}
-		if err := tx.Create(&OrderItems).Error; err != nil {
-			tx.Rollback()
-			c.JSON(501, gin.H{
-				"status": "Fail",
-				"error":  "Failed to store items details",
-				"code":   501,
-			})
-			return
-		}
-		// ============= manage the stock for COD ============
-		var productQuantity models.Products
-		tx.First(&productQuantity, val.ProductId)
-		if err := tx.Save(val.Product).Error; err != nil {
+		if err := tx.Create(&orderItem).Error; err != nil {
 			tx.Rollback()
 			c.JSON(500, gin.H{
 				"status": "Fail",
-				"error":  "Failed to Update Product Stock",
+				"error":  "Failed to store item details",
+				"code":   500,
+			})
+			return
+		}
+		// Manage the stock for COD
+		var product models.Products
+		tx.First(&product, val.ProductId)
+		product.Quantity -= int(val.Quantity)
+		if err := tx.Save(&product).Error; err != nil {
+			tx.Rollback()
+			c.JSON(500, gin.H{
+				"status": "Fail",
+				"error":  "Failed to update product stock",
 				"code":   500,
 			})
 			return
 		}
 	}
 
-	// =============== delete all items from user cart ==============
+	// Delete all items from user cart
 	if err := tx.Where("user_id =?", userID).Delete(&models.Cart{}).Error; err != nil {
 		tx.Rollback()
-		c.JSON(400, gin.H{
+		c.JSON(500, gin.H{
 			"status": "Fail",
 			"error":  "Failed to delete data in cart",
-			"code":   400,
+			"code":   500,
 		})
 		return
 	}
 
-	//================= commit transaction whether no error ==================
+	// Commit transaction if no error
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		c.JSON(500, gin.H{
@@ -270,13 +211,20 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
-	c.JSON(501, gin.H{
-		"status":      "Success",
-		"Order":       "Order Placed successfully",
-		"payment":     "COD",
-		"totalAmount": totalAmount,
-		"message":     "Order will arrive within 4 days",
-	})
+	// Success Response
+	if paymentMethod == "COD" {
+		c.JSON(200, gin.H{
+			"status":      "Success",
+			"message":     "Order placed successfully. Order will arrive within 4 days.",
+			"payment":     "COD",
+			"totalAmount": totalAmount,
+		})
+	} else if paymentMethod == "ONLINE" {
+		c.JSON(200, gin.H{
+			"status":      "Success",
+			"message":     "Please complete the payment",
+			"totalAmount": totalAmount,
+			"orderId":     order.Id,
+		})
+	}
 }
-
-//  offer discount and online payment methord logics has to impliment later
