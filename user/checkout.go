@@ -118,10 +118,11 @@ func CheckOut(c *gin.Context) {
 	}()
 
 	// Handle online payment
+	var rzpOrderId string
 	if paymentMethod == "ONLINE" {
 		// fmt.Println("order id : ", orderID)
 		// fmt.Println("total amount : ", totalAmount)
-		_, err := PaymentHandler(orderID, totalAmount)
+		rzpOrderId, err = PaymentHandler(orderID, totalAmount)
 		if err != nil {
 			c.JSON(500, gin.H{
 				"status": "Fail",
@@ -131,6 +132,7 @@ func CheckOut(c *gin.Context) {
 			tx.Rollback()
 			return
 		}
+		fmt.Println("razor pay id : ", rzpOrderId)
 	}
 
 	// Insert order details into the database
@@ -224,7 +226,7 @@ func CheckOut(c *gin.Context) {
 			"status":      "Success",
 			"message":     "Please complete the payment",
 			"totalAmount": totalAmount,
-			"orderId":     order.Id,
+			"orderId":     rzpOrderId,
 		})
 	}
 }
