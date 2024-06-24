@@ -57,6 +57,6 @@ func AdminRouter(r *gin.RouterGroup) {
 	r.GET("/sales/report/excel", admin.SalesReportExcel)
 	r.GET("/sales/report/pdf", admin.SalesReportPDF)
 
-	// r.GET("/bestselling", admin.BestSelling)
+	r.GET("/bestselling", admin.BestSelling)
 
 }

@@ -121,14 +121,16 @@ type Offer struct {
 	ValidFrom    time.Time `json:"valid_from"`
 	ValidTo      time.Time `json:"valid_to"`
 }
+
 type PaymentDetails struct {
-	gorm.Model
-	PaymentId     string
-	Order_Id      string
-	Receipt       uint
-	PaymentStatus string
-	PaymentAmount float64
+    gorm.Model
+    OrderID       string    `gorm:"index;not null" json:"order_id"`
+    PaymentId     string    `gorm:"not null" json:"payment_id"`
+    PaymentStatus string    `gorm:"not null" json:"payment_status"`
+    CreatedAt     time.Time `json:"created_at"`
+    UpdatedAt     time.Time `json:"updated_at"`
 }
+
 type Wishlist struct {
 	Id        uint
 	UserId    int

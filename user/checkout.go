@@ -120,8 +120,9 @@ func CheckOut(c *gin.Context) {
 	// Handle online payment
 	var rzpOrderId string
 	if paymentMethod == "ONLINE" {
-		// fmt.Println("order id : ", orderID)
-		// fmt.Println("total amount : ", totalAmount)
+		
+		fmt.Println("order id : ", orderID)
+		fmt.Println("total amount : ", totalAmount)
 		rzpOrderId, err = PaymentHandler(orderID, totalAmount)
 		if err != nil {
 			c.JSON(500, gin.H{
@@ -176,6 +177,8 @@ func CheckOut(c *gin.Context) {
 			})
 			return
 		}
+
+
 		// Manage the stock for COD
 		var product models.Products
 		tx.First(&product, val.ProductId)

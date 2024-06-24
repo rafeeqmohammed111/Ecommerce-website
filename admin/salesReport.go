@@ -149,7 +149,7 @@ func SalesReportExcel(c *gin.Context) {
 	totalRow.AddCell().Value = fmt.Sprintf("%.2f", totalDiscount)
 
 	// Save Excel file
-	excelPath := "/path/to/sales_report.xlsx" // Replace with your desired path
+	excelPath := "/home/abuaibak/Desktop/sales_report.xlsx" // Replace with your desired path
 	if err := file.Save(excelPath); err != nil {
 		c.JSON(500, gin.H{
 			"status": "Fail",
@@ -214,7 +214,7 @@ func SalesReportPDF(c *gin.Context) {
 	}
 
 	// Save PDF document
-	pdfPath := "/path/to/sales_report.pdf" // Replace with your desired path
+	pdfPath := "/home/abuaibak/Desktop/sales_report.pdf" // Replace with your desired path
 	if err := pdf.OutputFileAndClose(pdfPath); err != nil {
 		c.JSON(500, gin.H{
 			"status": "Fail",

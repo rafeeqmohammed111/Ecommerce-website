@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/razorpay/razorpay-go"
+	"gorm.io/gorm"
 )
 
 // PaymentHandler initiates payment with Razorpay
@@ -38,7 +39,6 @@ func PaymentHandler(orderID string, amount float64) (string, error) {
 
 // PaymentConfirmation handles Razorpay payment confirmation
 func PaymentConfirmation(c *gin.Context) {
-	var paymentStore models.PaymentDetails
 	var paymentDetails = make(map[string]string)
 	if err := c.BindJSON(&paymentDetails); err != nil {
 		c.JSON(400, gin.H{
@@ -60,30 +60,52 @@ func PaymentConfirmation(c *gin.Context) {
 		return
 	}
 
-	// Fetch order details from the database based on order_id
-	if err := initializer.DB.First(&paymentStore, "order_id=?", paymentDetails["order_id"]).Error; err != nil {
-		c.JSON(404, gin.H{
-			"status": "fail",
-			"error":  "Order details not found",
-			"code":   404,
-		})
-		return
-	}
+	// Debug: Log the order_id being used
+	fmt.Printf("Fetching payment details for order_id: %s\n", paymentDetails["order_id"])
 
-	// Update payment details in the database
-	paymentStore.PaymentId = paymentDetails["payment_id"]
-	paymentStore.PaymentStatus = "success"
-	if err := initializer.DB.Save(&paymentStore).Error; err != nil {
-		c.JSON(500, gin.H{
-			"status": "fail",
-			"error":  "Failed to update payment details",
-			"code":   500,
-		})
-		return
+	// Fetch or create payment details from the database based on order_id
+	var paymentStore models.PaymentDetails
+	if err := initializer.DB.Where("order_id = ?", paymentDetails["order_id"]).First(&paymentStore).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Record not found, create a new one
+			paymentStore = models.PaymentDetails{
+				OrderID:       paymentDetails["order_id"],
+				PaymentId:     paymentDetails["payment_id"],
+				PaymentStatus: "success",
+			}
+			if err := initializer.DB.Create(&paymentStore).Error; err != nil {
+				c.JSON(500, gin.H{
+					"status": "fail",
+					"error":  "Failed to create payment details",
+					"code":   500,
+				})
+				return
+			}
+		} else {
+			// Some other error occurred
+			fmt.Printf("Error fetching payment details: %v\n", err) // Debug: Log the error
+			c.JSON(404, gin.H{
+				"status": "fail",
+				"error":  "Order details not found",
+				"code":   404,
+			})
+			return
+		}
+	} else {
+		// Update existing payment details
+		paymentStore.PaymentId = paymentDetails["payment_id"]
+		paymentStore.PaymentStatus = "success"
+		if err := initializer.DB.Save(&paymentStore).Error; err != nil {
+			c.JSON(500, gin.H{
+				"status": "fail",
+				"error":  "Failed to update payment details",
+				"code":   500,
+			})
+			return
+		}
 	}
 
 	// Update product quantities or any other related operations
-	// Fetch order items and update quantities, etc.
 	var orderItems []models.OrderItems
 	if err := initializer.DB.Where("order_id = ?", paymentDetails["order_id"]).Find(&orderItems).Error; err != nil {
 		c.JSON(500, gin.H{

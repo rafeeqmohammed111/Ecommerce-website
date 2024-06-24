@@ -136,7 +136,7 @@ func CreateInvoice(c *gin.Context) {
 	pdf.CellFormat(150, 10, "Total Amount: ", "1", 0, "R", true, 0, "")
 	pdf.CellFormat(40, 10, fmt.Sprintf("%.2f", totalAmount), "1", 0, "R", true, 0, "")
 
-	pdfPath := "C:/Users/nuhma/Desktop/Week_Task/1st_project/invoice.pdf"
+	pdfPath := "/home/abuaibak/Desktop/golang (do not delete)/invoice.pdf"
 	if err := pdf.OutputFileAndClose(pdfPath); err != nil {
 		c.JSON(500, gin.H{
 			"status": "Fail",
