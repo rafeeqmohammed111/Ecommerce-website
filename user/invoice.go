@@ -114,7 +114,7 @@ func CreateInvoice(c *gin.Context) {
         order.OrderAmount -= float64(order.ShippingCharge)
     }
 
-    // Check if order.Coupon is not nil before accessing Discount
+   
     if order.Coupon != nil {
         Discount = order.Coupon.Discount
     }
@@ -135,7 +135,7 @@ func CreateInvoice(c *gin.Context) {
     pdf.CellFormat(150, 10, "Total Amount: ", "1", 0, "R", true, 0, "")
     pdf.CellFormat(40, 10, fmt.Sprintf("%.2f", totalAmount), "1", 0, "R", true, 0, "")
 
-    // Generate the PDF and send it as a response
+  
     var buf bytes.Buffer
     if err := pdf.Output(&buf); err != nil {
         c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate pdf", "details": err.Error()})

@@ -38,6 +38,7 @@ type Products struct {
 	CategoryId  int    `json:"category_id"`
 	Category    Category
 	ID          uint `gorm:"primary_key"`
+	Stock      uint
 }
 type Category struct {
 	gorm.Model
@@ -45,6 +46,7 @@ type Category struct {
 	Category_name        string `gorm:"not null" json:"category_name"`
 	Category_description string `gorm:"not null" json:"category_description"`
 	Blocking             bool   `gorm:"not null" json:"category_blocking"`
+
 }
 type Address struct {
 	ID      uint   `gorm:"primary_key"`
@@ -97,6 +99,8 @@ type OrderItems struct {
 	OrderCancelReason string    `json:"order_cancel_reason"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
+	ProductName   string
+	Category        string
 }
 
 type Wallet struct {

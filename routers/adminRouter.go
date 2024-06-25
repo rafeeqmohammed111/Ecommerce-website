@@ -59,4 +59,8 @@ func AdminRouter(r *gin.RouterGroup) {
 
 	r.GET("/bestselling", admin.BestSelling)
 
+
+	// *************ledger******************
+	r.GET("/ledger/monthly-sales-summary", admin.GetMonthlySalesSummary)
+
 }
