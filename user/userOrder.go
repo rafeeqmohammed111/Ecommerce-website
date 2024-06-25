@@ -4,7 +4,6 @@ import (
 	"log"
 	"project/initializer"
 	"project/models"
-	"strconv"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -124,141 +123,114 @@ func PlaceOrder(c *gin.Context) {
 }
 
 func CancelOrder(c *gin.Context) {
-	orderItemId, err := strconv.Atoi(c.Param("orderItemId"))
-	if err != nil {
+	orderID := c.PostForm("orderId")
+	productID := c.PostForm("productId")
+	reason := c.PostForm("reason")
+
+	if orderID == "" && productID == "" {
 		c.JSON(400, gin.H{
 			"status": "Fail",
-			"error":  "Invalid order item ID",
+			"error":  "Either orderId or productId must be provided",
 			"code":   400,
 		})
 		return
 	}
-	reason := c.PostForm("reason")
-	// session := sessions.Default(c)
-	// userID := session.Get("user_id").(uint)
 
 	tx := initializer.DB.Begin()
-	if reason == "" {
-		c.JSON(402, gin.H{
-			"status":  "Fail",
-			"message": "Please provide a valid cancellation reason.",
-			"code":    402,
-		})
-		return
+
+	var orderItem models.OrderItems
+	if orderID != "" {
+		var order models.Order
+		if err := tx.First(&order, "id = ?", orderID).Error; err != nil {
+			log.Println("Error fetching order:", err)
+			c.JSON(404, gin.H{
+				"status": "Fail",
+				"error":  "Order not found",
+				"code":   404,
+			})
+			tx.Rollback()
+			return
+		}
+		if err := tx.First(&orderItem, "order_id = ?", orderID).Error; err != nil {
+			log.Println("Error fetching order item:", err)
+			c.JSON(404, gin.H{
+				"status": "Fail",
+				"error":  "Order item not found",
+				"code":   404,
+			})
+			tx.Rollback()
+			return
+		}
+	} else if productID != "" {
+		if err := tx.First(&orderItem, "product_id = ?", productID).Error; err != nil {
+			log.Println("Error fetching order item:", err)
+			c.JSON(404, gin.H{
+				"status": "Fail",
+				"error":  "Order item not found",
+				"code":   404,
+			})
+			tx.Rollback()
+			return
+		}
 	}
 
-	// Fetch the order item using the order item ID
-	var orderItem models.OrderItems
-	if err := tx.First(&orderItem, orderItemId).Error; err != nil {
-		log.Println("Error fetching order item:", err)
-		c.JSON(404, gin.H{
-			"status": "Fail",
-			"error":  "Can't find order item",
-			"code":   404,
+	if orderItem.OrderStatus == "cancelled" {
+		c.JSON(202, gin.H{
+			"status":  "Fail",
+			"message": "Order item already cancelled",
+			"code":    202,
 		})
 		tx.Rollback()
 		return
 	}
 
-	// Fetch the corresponding order
+	orderItem.OrderStatus = "cancelled"
+	orderItem.OrderCancelReason = reason
+
+	if err := tx.Save(&orderItem).Error; err != nil {
+		log.Println("Error saving order item:", err)
+		c.JSON(500, gin.H{
+			"status": "Fail",
+			"error":  "Failed to save changes to order item",
+			"code":   500,
+		})
+		tx.Rollback()
+		return
+	}
+
 	var order models.Order
 	if err := tx.First(&order, orderItem.OrderId).Error; err != nil {
 		log.Println("Error fetching order:", err)
 		c.JSON(404, gin.H{
 			"status": "Fail",
-			"error":  "Can't find order",
+			"error":  "Order not found",
 			"code":   404,
 		})
 		tx.Rollback()
 		return
 	}
 
-	// Update the status of the order item to "cancelled"
-	if orderItem.OrderStatus == "cancelled" {
-		c.JSON(202, gin.H{
-			"status":  "Fail",
-			"message": "Product already cancelled",
-			"code":    202,
-		})
-		return
-	}
-	orderItem.OrderStatus = "cancelled"
-	orderItem.OrderCancelReason = reason
-	if err := tx.Save(&orderItem).Error; err != nil {
-		log.Println("Error saving order item:", err)
-		c.JSON(500, gin.H{
-			"status": "Fail",
-			"error":  "Failed to save changes to database.",
-			"code":   500,
-		})
-		tx.Rollback()
-		return
-	}
-
-	// Fetch the product price
-	var product models.Products
-	if err := tx.First(&product, orderItem.ProductId).Error; err != nil {
-		log.Println("Error fetching product:", err)
-		c.JSON(404, gin.H{
-			"status": "Fail",
-			"error":  "Can't find product",
-			"code":   404,
-		})
-		tx.Rollback()
-		return
-	}
-
-	// Calculate the cancel amount and update the order's total amount
 	cancelAmount := orderItem.SubTotal
-	if float64(product.Price) > cancelAmount {
-		cancelAmount = float64(product.Price)
-	}
 
-	order.OrderAmount -= cancelAmount
+	if order.OrderAmount > cancelAmount {
+		order.OrderAmount -= cancelAmount
 
-	// Check coupon condition
-	var couponDiscount float64
-	if order.CouponCode != "" {
-		var coupon models.Coupon
-		if err := initializer.DB.First(&coupon, "code=?", order.CouponCode).Error; err == nil {
-			couponDiscount = float64(coupon.Discount)
-			if coupon.CouponCondition <= int(order.OrderAmount) {
-				order.OrderAmount -= couponDiscount
-				tx.Save(&order)
+		var couponDiscount float64
+		if order.CouponCode != "" {
+			var coupon models.Coupon
+			if err := initializer.DB.First(&coupon, "code=?", order.CouponCode).Error; err == nil {
+				couponDiscount = float64(coupon.Discount)
+				if coupon.CouponCondition <= int(order.OrderAmount) {
+					order.OrderAmount -= couponDiscount
+				}
 			}
 		}
-	}
 
-	if err := tx.Save(&order).Error; err != nil {
-		log.Println("Error saving order:", err)
-		c.JSON(500, gin.H{
-			"status": "Fail",
-			"error":  "Failed to update order details",
-			"code":   500,
-		})
-		tx.Rollback()
-		return
-	}
-
-	// Update wallet balance if necessary
-	if order.OrderPaymentMethod == "online" {
-		var walletUpdate models.Wallet
-		if err := tx.First(&walletUpdate, "user_id=?", order.UserId).Error; err != nil {
-			c.JSON(501, gin.H{
-				"status": "Fail",
-				"error":  "Failed to fetch wallet details",
-				"code":   501,
-			})
-			tx.Rollback()
-			return
-		}
-
-		walletUpdate.Balance += cancelAmount
-		if err := tx.Save(&walletUpdate).Error; err != nil {
-			log.Println("Error updating wallet:", err)
+		if err := tx.Save(&order).Error; err != nil {
+			log.Println("Error saving order:", err)
 			c.JSON(500, gin.H{
 				"status": "Fail",
-				"error":  "Failed to update wallet balance.",
+				"error":  "Failed to update order details",
 				"code":   500,
 			})
 			tx.Rollback()
@@ -266,25 +238,57 @@ func CancelOrder(c *gin.Context) {
 		}
 	}
 
+	if order.OrderPaymentMethod == "online" {
+		var wallet models.Wallet
+		if err := tx.First(&wallet, "user_id=?", order.UserId).Error; err != nil {
+			log.Println("Error fetching wallet:", err)
+			c.JSON(500, gin.H{
+				"status": "Fail",
+				"error":  "Failed to fetch wallet details",
+				"code":   500,
+			})
+			tx.Rollback()
+			return
+		}
+
+		log.Println("Initial wallet balance:", wallet.Balance)
+		log.Println("Cancel amount to be added:", cancelAmount)
+
+		wallet.Balance += cancelAmount
+		if err := tx.Save(&wallet).Error; err != nil {
+			log.Println("Error updating wallet:", err)
+			c.JSON(500, gin.H{
+				"status": "Fail",
+				"error":  "Failed to update wallet balance",
+				"code":   500,
+			})
+			tx.Rollback()
+			return
+		}
+
+		log.Println("Updated wallet balance:", wallet.Balance)
+	}
+
 	if err := tx.Commit().Error; err != nil {
-		c.JSON(201, gin.H{
-			"status":  "Fail",
-			"message": "Failed to commit transaction",
-			"code":    201,
+		log.Println("Error committing transaction:", err)
+		c.JSON(500, gin.H{
+			"status": "Fail",
+			"error":  "Failed to commit transaction",
+			"code":   500,
 		})
 		tx.Rollback()
-	} else {
-		c.JSON(201, gin.H{
-			"status":  "Success",
-			"message": "Order Item Cancelled",
-			"data":    "cancelled",
-		})
+		return
 	}
+
+	c.JSON(200, gin.H{
+		"status":  "Success",
+		"message": "Order item cancelled successfully",
+	})
 }
 
 func UserOrderStatus(c *gin.Context) {
 	session := sessions.Default(c)
-	userID := session.Get("user_id").(uint) 
+	userID := session.Get("user_id").(uint)
 
 	var orders []models.Order
 	if err := initializer.DB.Where("user_id = ?", userID).Find(&orders).Error; err != nil {

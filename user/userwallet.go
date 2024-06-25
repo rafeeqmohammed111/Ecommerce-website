@@ -34,10 +34,10 @@ func FetchCanceledOrdersAndUpdateWallet(c *gin.Context) {
 
 	var wallet models.Wallet
 	if err := initializer.DB.First(&wallet, "user_id = ?", userID).Error; err != nil {
-		// If the wallet is not found, create a new one
+		// If the wallet is not found, creating new one
 		if err == gorm.ErrRecordNotFound {
 			wallet = models.Wallet{
-				User_id: int(userID), // Correctly assign the userID here
+				UserId:  int(userID),
 				Balance: 0,
 			}
 			if err := initializer.DB.Create(&wallet).Error; err != nil {
@@ -70,7 +70,7 @@ func FetchCanceledOrdersAndUpdateWallet(c *gin.Context) {
 
 	c.JSON(200, gin.H{
 		"status":            "Success",
-		"message":           "Fetched canceled orders and updated wallet balance",
+		"message":           " updated wallet balance",
 		"totalRefundAmount": totalRefundAmount,
 		"walletBalance":     wallet.Balance,
 		"canceledOrders":    canceledOrders,

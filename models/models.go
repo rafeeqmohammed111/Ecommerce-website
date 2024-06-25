@@ -65,45 +65,49 @@ type Cart struct {
 	Quantity  uint
 }
 type Order struct {
-	Id                 string
-	UserId             int `json:"orderId"`
-	User               Users
-	AddressId          int `json:"orderAddress"`
-	Address            Address
-	CouponCode         string `json:"orderCoupon"`
-	OrderPaymentMethod string `json:"orderPayment"`
-	OrderAmount        float64
-	TotalAmount        float64
-	ShippingCharge     float32
-	OrderStatus        string `json:"order_status"`
-	OrderDate          time.Time
-	OrderUpdate        time.Time
-	CouponID           *uint
-	Coupon             *Coupon
-	OrderItems         []OrderItems
-	CreatedAt          time.Time
+	Id                 string       `json:"id"`
+	UserId             int          `json:"user_id"`
+	User               Users        `json:"user" gorm:"foreignKey:UserId"`
+	AddressId          int          `json:"address_id"`
+	Address            Address      `json:"address" gorm:"foreignKey:AddressId"`
+	CouponCode         string       `json:"coupon_code"`
+	OrderPaymentMethod string       `json:"order_payment_method"`
+	OrderAmount        float64      `json:"order_amount"`
+	TotalAmount        float64      `json:"total_amount"`
+	ShippingCharge     float32      `json:"shipping_charge"`
+	OrderStatus        string       `json:"order_status"`
+	OrderDate          time.Time    `json:"order_date"`
+	OrderUpdate        time.Time    `json:"order_update"`
+	CouponID           *uint        `json:"coupon_id"`
+	Coupon             *Coupon      `json:"coupon" gorm:"foreignKey:CouponID"`
+	OrderItems         []OrderItems `json:"order_items" gorm:"foreignKey:OrderId"`
+	CreatedAt          time.Time    `json:"created_at"`
+	UpdatedAt          time.Time    `json:"updated_at"`
 }
+
 type OrderItems struct {
-	Id                uint `gorm:"primary key"`
-	OrderId           string
-	Order             Order
-	ProductId         int
-	Product           Products
-	Quantity          uint
-	SubTotal          float64
-	OrderStatus       string
-	OrderCancelReason string
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	Id                uint      `gorm:"primaryKey" json:"id"`
+	OrderId           string    `json:"order_id"`
+	Order             Order     `json:"order" gorm:"foreignKey:OrderId"`
+	ProductId         int       `json:"product_id"`
+	Product           Products  `json:"product" gorm:"foreignKey:ProductId"`
+	Quantity          uint      `json:"quantity"`
+	SubTotal          float64   `json:"sub_total"`
+	OrderStatus       string    `json:"order_status"`
+	OrderCancelReason string    `json:"order_cancel_reason"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
+
 type Wallet struct {
 	gorm.Model
-	User_id  int `gorm:"primary key"`
-	User     Users
-	Balance  float64
-	Code     string
-	Discount float64
+	UserId   int     `gorm:"primaryKey" json:"user_id"`
+	User     Users   `json:"user" gorm:"foreignKey:UserId"`
+	Balance  float64 `json:"balance"`
+	Code     string  `json:"code"`
+	Discount float64 `json:"discount"`
 }
+
 type Coupon struct {
 	ID              uint      `gorm:"primarykey"`
 	Code            string    `gorm:"unique" json:"code"`
@@ -123,12 +127,12 @@ type Offer struct {
 }
 
 type PaymentDetails struct {
-    gorm.Model
-    OrderID       string    `gorm:"index;not null" json:"order_id"`
-    PaymentId     string    `gorm:"not null" json:"payment_id"`
-    PaymentStatus string    `gorm:"not null" json:"payment_status"`
-    CreatedAt     time.Time `json:"created_at"`
-    UpdatedAt     time.Time `json:"updated_at"`
+	gorm.Model
+	OrderID       string    `gorm:"index;not null" json:"order_id"`
+	PaymentId     string    `gorm:"not null" json:"payment_id"`
+	PaymentStatus string    `gorm:"not null" json:"payment_status"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 type Wishlist struct {

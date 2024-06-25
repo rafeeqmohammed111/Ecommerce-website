@@ -16,8 +16,7 @@ import (
 // CheckOut handles the checkout process for placing an order
 func CheckOut(c *gin.Context) {
 	session := sessions.Default(c)
-	userID := session.Get("user_id").(uint) // Assuming user_id is stored as uint in the session
-
+	userID := session.Get("user_id").(uint)
 	var cartItems []models.Cart
 	initializer.DB.Preload("Product").Where("user_id=?", userID).Find(&cartItems)
 	if len(cartItems) == 0 {
@@ -57,6 +56,7 @@ func CheckOut(c *gin.Context) {
 	}
 
 	// Coupon validation
+	var discountAmount float64
 	couponCode := c.Request.FormValue("coupon")
 	if couponCode != "" {
 		var couponCheck models.Coupon
@@ -66,7 +66,8 @@ func CheckOut(c *gin.Context) {
 			})
 			return
 		}
-		totalAmount -= couponCheck.Discount
+		discountAmount = couponCheck.Discount
+		totalAmount -= discountAmount
 	}
 
 	// Delivery charges
@@ -90,7 +91,6 @@ func CheckOut(c *gin.Context) {
 	}
 
 	// Generate a unique order ID using UUID and random numeric string
-	// uuidPart := uuid.New().String()
 	const charset = "123456789"
 	randomBytes := make([]byte, 8)
 	_, err = rand.Read(randomBytes)
@@ -106,7 +106,6 @@ func CheckOut(c *gin.Context) {
 		randomBytes[i] = charset[b%byte(len(charset))]
 	}
 	numericPart := string(randomBytes)
-	// orderID := uuidPart + "-" + numericPart
 	orderID := numericPart
 
 	// Start the transaction
@@ -120,7 +119,6 @@ func CheckOut(c *gin.Context) {
 	// Handle online payment
 	var rzpOrderId string
 	if paymentMethod == "ONLINE" {
-		
 		fmt.Println("order id : ", orderID)
 		fmt.Println("total amount : ", totalAmount)
 		rzpOrderId, err = PaymentHandler(orderID, totalAmount)
@@ -178,7 +176,6 @@ func CheckOut(c *gin.Context) {
 			return
 		}
 
-
 		// Manage the stock for COD
 		var product models.Products
 		tx.First(&product, val.ProductId)
@@ -194,7 +191,7 @@ func CheckOut(c *gin.Context) {
 		}
 	}
 
-	// Delete all items from user cart
+	// ****Delete all items from user cart****
 	if err := tx.Where("user_id =?", userID).Delete(&models.Cart{}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(500, gin.H{
@@ -205,8 +202,9 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
-	// Commit transaction if no error
+	// ****Commit transaction if no error****
 	if err := tx.Commit().Error; err != nil {
+		// tx.Roll
 		tx.Rollback()
 		c.JSON(500, gin.H{
 			"status": "Fail",
@@ -223,6 +221,7 @@ func CheckOut(c *gin.Context) {
 			"message":     "Order placed successfully. Order will arrive within 4 days.",
 			"payment":     "COD",
 			"totalAmount": totalAmount,
+			"discount":    discountAmount,
 		})
 	} else if paymentMethod == "ONLINE" {
 		c.JSON(200, gin.H{
@@ -230,6 +229,7 @@ func CheckOut(c *gin.Context) {
 			"message":     "Please complete the payment",
 			"totalAmount": totalAmount,
 			"orderId":     rzpOrderId,
+			"discount":    discountAmount,
 		})
 	}
 }

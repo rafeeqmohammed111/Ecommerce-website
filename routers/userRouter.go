@@ -43,7 +43,7 @@ func UserGroup(r *gin.RouterGroup) {
 	r.POST("/checkout", middleware.AuthMiddleware(roleuser), user.CheckOut)
 	r.GET("/orders", middleware.AuthMiddleware(roleuser), user.OrderView)
 	r.GET("/orderdetails/:ID", middleware.AuthMiddleware(roleuser), user.OrderView)
-	r.PATCH("/ordercancel/:orderItemId", middleware.AuthMiddleware(roleuser), user.CancelOrder) 
+	r.PATCH("/ordercancel", middleware.AuthMiddleware(roleuser), user.CancelOrder)
 	r.GET("/orderstatus", middleware.AuthMiddleware(roleuser), user.UserOrderStatus)
 	r.GET("/wallet", middleware.AuthMiddleware(roleuser), user.FetchCanceledOrdersAndUpdateWallet)
 
@@ -58,13 +58,11 @@ func UserGroup(r *gin.RouterGroup) {
 	r.POST("/wishlist/:ID", middleware.AuthMiddleware(roleuser), user.WishlistAdd)
 	r.DELETE("/wishlist/:ID", middleware.AuthMiddleware(roleuser), user.WishlistDelete)
 
-	
 	// =================== category search=======================
 	r.GET("/category/:id", user.SearchCategoryByID)
 
 	//=============================invoice==================================
 
-	r.GET("/order/invoice/:ID", middleware.AuthMiddleware(roleuser), user.CreateInvoice)
-
+	r.GET("/order/invoice/:id", middleware.AuthMiddleware(roleuser), user.CreateInvoice)
 
 }
