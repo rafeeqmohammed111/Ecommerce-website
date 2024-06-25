@@ -137,7 +137,7 @@ func CheckOut(c *gin.Context) {
 	// Insert order details into the database
 	order := models.Order{
 		Id:                 orderID,
-		UserId:             int(userID),
+		UserId:             uint(userID),
 		OrderPaymentMethod: paymentMethod,
 		AddressId:          addressID,
 		OrderAmount:        totalAmount,

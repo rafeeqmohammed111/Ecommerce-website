@@ -66,7 +66,7 @@ type Cart struct {
 }
 type Order struct {
 	Id                 string       `json:"id"`
-	UserId             int          `json:"user_id"`
+	UserId             uint          `json:"user_id"`
 	User               Users        `json:"user" gorm:"foreignKey:UserId"`
 	AddressId          int          `json:"address_id"`
 	Address            Address      `json:"address" gorm:"foreignKey:AddressId"`
@@ -101,11 +101,11 @@ type OrderItems struct {
 
 type Wallet struct {
 	gorm.Model
-	UserId   int     `gorm:"primaryKey" json:"user_id"`
-	User     Users   `json:"user" gorm:"foreignKey:UserId"`
-	Balance  float64 `json:"balance"`
-	Code     string  `json:"code"`
-	Discount float64 `json:"discount"`
+	UserId  uint    `json:"user_id"`
+	User    Users   `json:"user" gorm:"foreignKey:UserId"`
+	Balance float64 `json:"balance"`
+	// Code     string  `json:"code"`
+	// Discount float64 `json:"discount"`
 }
 
 type Coupon struct {
