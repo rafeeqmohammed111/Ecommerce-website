@@ -20,7 +20,7 @@ import (
 func PaymentHandler(orderID string, amount float64) (string, error) {
 	client := razorpay.NewClient(os.Getenv("RAZORPAY_KEY"), os.Getenv("RAZORPAY_SECRET"))
 	orderParams := map[string]interface{}{
-		"amount":   int(amount * 100), // Razorpay expects amount in paise
+		"amount":   int(amount * 100),
 		"currency": "INR",
 		"receipt":  orderID,
 	}
@@ -72,6 +72,7 @@ func PaymentConfirmation(c *gin.Context) {
 				OrderID:       paymentDetails["order_id"],
 				PaymentId:     paymentDetails["payment_id"],
 				PaymentStatus: "success",
+			
 			}
 			if err := initializer.DB.Create(&paymentStore).Error; err != nil {
 				c.JSON(500, gin.H{

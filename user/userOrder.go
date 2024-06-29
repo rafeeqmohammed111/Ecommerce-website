@@ -25,7 +25,7 @@ func OrderView(c *gin.Context) {
 	var orders []models.Order
 	var orderShow []gin.H
 	session := sessions.Default(c)
-	userID := session.Get("user_id").(uint) // Assuming user_id is stored as uint in the session
+	userID := session.Get("user_id").(uint)
 	initializer.DB.Where("user_id=?", userID).Find(&orders)
 	for _, v := range orders {
 		orderShow = append(orderShow, gin.H{
@@ -112,13 +112,13 @@ func PlaceOrder(c *gin.Context) {
 
 func CancelOrder(c *gin.Context) {
 	orderID := c.PostForm("orderId")
-	productID := c.PostForm("productId")
+	itemId := c.PostForm("itemId")
 	reason := c.PostForm("reason")
 
-	if orderID == "" && productID == "" {
+	if orderID == "" && itemId == "" {
 		c.JSON(400, gin.H{
 			"status": "Fail",
-			"error":  "Either orderId or productId must be provided",
+			"error":  "Either orderId or itemId must be provided",
 			"code":   400,
 		})
 		return
@@ -145,8 +145,8 @@ func CancelOrder(c *gin.Context) {
 			})
 			return
 		}
-	} else if productID != "" {
-		if err := initializer.DB.First(&orderItem, "product_id = ?", productID).Error; err != nil {
+	} else if itemId != "" {
+		if err := initializer.DB.First(&orderItem, "id = ?", itemId).Error; err != nil {
 			log.Println("Error fetching order item:", err)
 			c.JSON(404, gin.H{
 				"status": "Fail",
@@ -220,9 +220,8 @@ func CancelOrder(c *gin.Context) {
 
 	if order.OrderPaymentMethod == "ONLINE" {
 		var wallet models.Wallet
-		userID := order.UserId 
+		userID := order.UserId
 
-		
 		if err := initializer.DB.Where("user_id = ?", userID).First(&wallet).Error; err != nil {
 			wallet = models.Wallet{
 				UserId:  userID,
@@ -237,10 +236,8 @@ func CancelOrder(c *gin.Context) {
 		fmt.Println("Initial wallet balance:", wallet.Balance)
 		fmt.Println("Cancel amount to be added:", cancelAmount)
 
-		
 		wallet.Balance += cancelAmount
 
-	
 		if err := initializer.DB.Save(&wallet).Error; err != nil {
 			log.Println("Error updating wallet:", err)
 			c.JSON(500, gin.H{
@@ -255,11 +252,11 @@ func CancelOrder(c *gin.Context) {
 	}
 
 	c.JSON(200, gin.H{
-		"status":  "Success",
-		"message": "Order item cancelled successfully",
+		"status":           "Success",
+		"message":          "Order item cancelled successfully",
+		"cancelled amount": cancelAmount,
 	})
 }
-
 
 func UserOrderStatus(c *gin.Context) {
 	session := sessions.Default(c)
@@ -323,5 +320,73 @@ func UserOrderStatus(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"status": "success",
 		"orders": orderStatuses,
+	})
+}
+
+func OrderDetails(c *gin.Context) {
+
+	orderID := c.Param("ID")
+
+	var order models.Order
+	var orderItems []models.OrderItems
+
+	if err := initializer.DB.Where("id = ?", orderID).First(&order).Error; err != nil {
+		c.JSON(404, gin.H{
+			"status": "Fail",
+			"error":  "Order not found",
+			"code":   404,
+		})
+		return
+	}
+
+	if err := initializer.DB.Where("order_id = ?", orderID).Find(&orderItems).Error; err != nil {
+		c.JSON(500, gin.H{
+			"status": "Fail",
+			"error":  "Failed to fetch order items",
+			"code":   500,
+		})
+		return
+	}
+
+	var totalAmountBeforeDiscount float64
+	for _, item := range orderItems {
+		totalAmountBeforeDiscount += item.SubTotal
+	}
+
+	totalDiscount := totalAmountBeforeDiscount - order.OrderAmount
+
+	orderDetails := gin.H{
+		"userId":                   order.UserId,
+		"orderAmount":              totalAmountBeforeDiscount,
+		"couponCode":               order.CouponCode,
+		"totalAmountAfterDiscount": order.OrderAmount,
+		"orderDate":                order.OrderDate,
+		"totalDiscount":            totalDiscount,
+		"items":                    []gin.H{},
+	}
+
+	for _, item := range orderItems {
+		product := models.Products{}
+		if err := initializer.DB.Where("id = ?", item.ProductId).First(&product).Error; err != nil {
+			c.JSON(500, gin.H{
+				"status": "Fail",
+				"error":  "Failed to fetch product details",
+				"code":   500,
+			})
+			return
+		}
+		orderDetails["items"] = append(orderDetails["items"].([]gin.H), gin.H{
+			"productId":   item.ProductId, //was
+			"productName": product.Name,
+			"itemId":      item.Id,
+			"quantity":    item.Quantity,
+			"status":      item.OrderStatus,
+			"amount":      item.SubTotal,
+		})
+	}
+
+	c.JSON(200, gin.H{
+		"status": "success",
+		"order":  orderDetails,
 	})
 }

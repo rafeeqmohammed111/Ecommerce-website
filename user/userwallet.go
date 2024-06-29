@@ -99,6 +99,6 @@ func FetchCanceledOrdersAndUpdateWallet(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "faild to find the user"})
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"wallet Balance": wallet.Balance,
+		"yuour wallet Balance": wallet.Balance,
 	})
 }

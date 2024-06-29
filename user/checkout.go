@@ -17,6 +17,8 @@ import (
 func CheckOut(c *gin.Context) {
 	session := sessions.Default(c)
 	userID := session.Get("user_id").(uint)
+
+	// Fetch cart items
 	var cartItems []models.Cart
 	initializer.DB.Preload("Product").Where("user_id=?", userID).Find(&cartItems)
 	if len(cartItems) == 0 {
@@ -28,7 +30,7 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
-	// Check if given payment method and address are provided
+	// Check payment method and address
 	paymentMethod := c.Request.PostFormValue("payment")
 	addressID, err := strconv.Atoi(c.Request.PostFormValue("address"))
 	if err != nil || addressID == 0 {
@@ -78,23 +80,21 @@ func CheckOut(c *gin.Context) {
 	}
 
 	// COD checking
-	if paymentMethod == "COD" {
-		if totalAmount > 1000 {
-			c.JSON(202, gin.H{
-				"status":      "Fail",
-				"message":     "Orders greater than 1000 rupees are not eligible for COD",
-				"totalAmount": totalAmount,
-				"code":        202,
-			})
-			return
-		}
+	if paymentMethod == "COD" && totalAmount > 1000 {
+		c.JSON(202, gin.H{
+			"status":         "Fail",
+			"message":        "Orders greater than 1000 rupees are not eligible for COD",
+			"totalAmount":    totalAmount,
+			"shippingCharge": shippingCharge,
+			"code":           202,
+		})
+		return
 	}
 
-	// Generate a unique order ID using UUID and random numeric string
+	// Generate a unique order ID *****
 	const charset = "123456789"
 	randomBytes := make([]byte, 8)
-	_, err = rand.Read(randomBytes)
-	if err != nil {
+	if _, err := rand.Read(randomBytes); err != nil {
 		c.JSON(500, gin.H{
 			"status": "Fail",
 			"error":  "Failed to generate order ID",
@@ -105,8 +105,7 @@ func CheckOut(c *gin.Context) {
 	for i, b := range randomBytes {
 		randomBytes[i] = charset[b%byte(len(charset))]
 	}
-	numericPart := string(randomBytes)
-	orderID := numericPart
+	orderID := string(randomBytes)
 
 	// Start the transaction
 	tx := initializer.DB.Begin()
@@ -116,11 +115,9 @@ func CheckOut(c *gin.Context) {
 		}
 	}()
 
-	// Handle online payment
+
 	var rzpOrderId string
 	if paymentMethod == "ONLINE" {
-		fmt.Println("order id : ", orderID)
-		fmt.Println("total amount : ", totalAmount)
 		rzpOrderId, err = PaymentHandler(orderID, totalAmount)
 		if err != nil {
 			c.JSON(500, gin.H{
@@ -131,13 +128,12 @@ func CheckOut(c *gin.Context) {
 			tx.Rollback()
 			return
 		}
-		fmt.Println("razor pay id : ", rzpOrderId)
 	}
 
-	// Insert order details into the database
+	// Inserting  into the database****
 	order := models.Order{
 		Id:                 orderID,
-		UserId:             uint(userID),
+		UserId:             userID,
 		OrderPaymentMethod: paymentMethod,
 		AddressId:          addressID,
 		OrderAmount:        totalAmount,
@@ -155,7 +151,6 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
-	// Insert order items into the database
 	for _, val := range cartItems {
 		orderItem := models.OrderItems{
 			OrderId:     orderID,
@@ -165,6 +160,8 @@ func CheckOut(c *gin.Context) {
 			OrderStatus: "pending",
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
+			ProductName: val.Product.Name,                   
+			Category:    val.Product.Category.Category_name, 
 		}
 		if err := tx.Create(&orderItem).Error; err != nil {
 			tx.Rollback()
@@ -176,7 +173,7 @@ func CheckOut(c *gin.Context) {
 			return
 		}
 
-		// Manage the stock for COD
+		// Manage the stock for COD******
 		var product models.Products
 		tx.First(&product, val.ProductId)
 		product.Quantity -= int(val.Quantity)
@@ -191,7 +188,7 @@ func CheckOut(c *gin.Context) {
 		}
 	}
 
-	// ****Delete all items from user cart****
+	// Delete all items from user cart*****
 	if err := tx.Where("user_id =?", userID).Delete(&models.Cart{}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(500, gin.H{
@@ -202,9 +199,8 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
-	// ****Commit transaction if no error****
+	// Commit transaction if no error
 	if err := tx.Commit().Error; err != nil {
-		// tx.Roll
 		tx.Rollback()
 		c.JSON(500, gin.H{
 			"status": "Fail",
@@ -217,19 +213,21 @@ func CheckOut(c *gin.Context) {
 	// Success Response
 	if paymentMethod == "COD" {
 		c.JSON(200, gin.H{
-			"status":      "Success",
-			"message":     "Order placed successfully. Order will arrive within 4 days.",
-			"payment":     "COD",
-			"totalAmount": totalAmount,
-			"discount":    discountAmount,
+			"status":         "Success",
+			"message":        "Order placed successfully. Order will arrive within 4 days.",
+			"payment":        "COD",
+			"totalAmount":    totalAmount,
+			"shippingCharge": shippingCharge,
+			"discount":       discountAmount,
 		})
 	} else if paymentMethod == "ONLINE" {
 		c.JSON(200, gin.H{
-			"status":      "Success",
-			"message":     "Please complete the payment",
-			"totalAmount": totalAmount,
-			"orderId":     rzpOrderId,
-			"discount":    discountAmount,
+			"status":         "Success",
+			"message":        "Please complete the payment",
+			"totalAmount":    totalAmount,
+			"orderId":        rzpOrderId,
+			"shippingCharge": "you are eligible for free shiping",
+			"discount":       discountAmount,
 		})
 	}
 }

@@ -42,7 +42,7 @@ func UserGroup(r *gin.RouterGroup) {
 	// =======================check out ====================
 	r.POST("/checkout", middleware.AuthMiddleware(roleuser), user.CheckOut)
 	r.GET("/orders", middleware.AuthMiddleware(roleuser), user.OrderView)
-	r.GET("/orderdetails/:ID", middleware.AuthMiddleware(roleuser), user.OrderView)
+	r.GET("/orderdetails/:ID", middleware.AuthMiddleware(roleuser), user.OrderDetails)
 	r.PATCH("/ordercancel", middleware.AuthMiddleware(roleuser), user.CancelOrder)
 	r.GET("/orderstatus", middleware.AuthMiddleware(roleuser), user.UserOrderStatus)
 	r.GET("/wallet", middleware.AuthMiddleware(roleuser), user.FetchCanceledOrdersAndUpdateWallet)

@@ -41,7 +41,7 @@ func BestSelling(c *gin.Context) {
 			BestList = append(BestList, gin.H{
 				"productName":  v.Name,
 				"salesVolume":  v.Quantity,
-				"averagePrice": fmt.Sprintf("%.2f",float64(v.Price) / float64(v.Quantity)),
+				"averagePrice": fmt.Sprintf("%.2f", float64(v.Price)/float64(v.Quantity)),
 			})
 		}
 
@@ -64,6 +64,7 @@ func BestSelling(c *gin.Context) {
 		for _, v := range BestCategory {
 			BestList = append(BestList, gin.H{
 				"categoryName": v.Category_name,
+				"quantity":     v.Quantity,
 			})
 		}
 	}
