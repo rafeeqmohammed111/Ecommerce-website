@@ -44,7 +44,7 @@ func UserGroup(r *gin.RouterGroup) {
 	r.GET("/orders", middleware.AuthMiddleware(roleuser), user.OrderView)
 	r.GET("/orderdetails/:ID", middleware.AuthMiddleware(roleuser), user.OrderDetails)
 	r.PATCH("/ordercancel", middleware.AuthMiddleware(roleuser), user.CancelOrder)
-	r.GET("/orderstatus", middleware.AuthMiddleware(roleuser), user.UserOrderStatus)
+	r.GET("/orderview", middleware.AuthMiddleware(roleuser), user.UserOrderStatus)
 	r.GET("/wallet", middleware.AuthMiddleware(roleuser), user.FetchCanceledOrdersAndUpdateWallet)
 
 	// =========================== payment ==========================
@@ -52,6 +52,11 @@ func UserGroup(r *gin.RouterGroup) {
 		c.HTML(http.StatusOK, "payment.html", nil)
 	})
 	r.POST("/payment/confirm", user.PaymentConfirmation)
+
+	// r.POST("/retry-payment/:orderId", user.RetryPayment)
+
+
+	
 
 	// =========================== wishlist =========================
 	r.GET("/wishlist", middleware.AuthMiddleware(roleuser), user.WishlistProducts)

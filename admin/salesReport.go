@@ -59,7 +59,6 @@ func GenerateReport(c *gin.Context) {
 		return
 	}
 
-	// Aggregate data
 	var totalOrders int
 	var totalSalesAmount float64
 	var totalDiscount float64
@@ -72,7 +71,6 @@ func GenerateReport(c *gin.Context) {
 		}
 	}
 
-	// Prepare report data
 	report := ReportData{
 		TimeRange:        timeRange,
 		TotalOrders:      totalOrders,
@@ -84,8 +82,6 @@ func GenerateReport(c *gin.Context) {
 	c.JSON(200, report)
 }
 
-// SalesReport generates a sales report including total sales amount, total sales count, and total order cancellations.
-// SalesReportExcel generates a sales report in Excel format and sends it as a downloadable file.
 func SalesReportExcel(c *gin.Context) {
 	timeRange := c.Query("time_range")
 	if timeRange == "" {
@@ -149,7 +145,7 @@ func SalesReportExcel(c *gin.Context) {
 	totalRow.AddCell().Value = fmt.Sprintf("%.2f", totalDiscount)
 
 	// Save Excel file
-	excelPath := "/home/abuaibak/Desktop/sales_report.xlsx" // Replace with your desired path
+	excelPath := "/home/abuaibak/Desktop/sales_report.xlsx"
 	if err := file.Save(excelPath); err != nil {
 		c.JSON(500, gin.H{
 			"status": "Fail",
@@ -164,8 +160,6 @@ func SalesReportExcel(c *gin.Context) {
 	c.File(excelPath)
 }
 
-// SalesReportPDF generates a sales report in PDF format and sends it as a downloadable file.
-// SalesReportPDF generates a sales report in PDF format and sends it as a downloadable file.
 func SalesReportPDF(c *gin.Context) {
 	timeRange := c.Query("time_range")
 	if timeRange == "" {
@@ -213,8 +207,8 @@ func SalesReportPDF(c *gin.Context) {
 		}
 	}
 
-	// Save PDF document
-	pdfPath := "/home/abuaibak/Desktop/sales_report.pdf" // Replace with your desired path
+	// Save
+	pdfPath := "/home/abuaibak/Desktop/sales_report.pdf"
 	if err := pdf.OutputFileAndClose(pdfPath); err != nil {
 		c.JSON(500, gin.H{
 			"status": "Fail",

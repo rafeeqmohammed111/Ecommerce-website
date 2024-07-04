@@ -3,6 +3,7 @@ package user
 import (
 	"crypto/rand"
 	"fmt"
+	"net/http"
 	"project/initializer"
 	"project/models"
 	"strconv"
@@ -13,12 +14,12 @@ import (
 	// "github.com/google/uuid"
 )
 
-// CheckOut handles the checkout process for placing an order
+var razorpayPaymentID string
+
 func CheckOut(c *gin.Context) {
 	session := sessions.Default(c)
 	userID := session.Get("user_id").(uint)
 
-	// Fetch cart items
 	var cartItems []models.Cart
 	initializer.DB.Preload("Product").Where("user_id=?", userID).Find(&cartItems)
 	if len(cartItems) == 0 {
@@ -30,7 +31,6 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
-	// Check payment method and address
 	paymentMethod := c.Request.PostFormValue("payment")
 	addressID, err := strconv.Atoi(c.Request.PostFormValue("address"))
 	if err != nil || addressID == 0 {
@@ -91,7 +91,7 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
-	// Generate a unique order ID *****
+	// Generate unique order ID
 	const charset = "123456789"
 	randomBytes := make([]byte, 8)
 	if _, err := rand.Read(randomBytes); err != nil {
@@ -107,7 +107,6 @@ func CheckOut(c *gin.Context) {
 	}
 	orderID := string(randomBytes)
 
-	// Start the transaction
 	tx := initializer.DB.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -115,22 +114,7 @@ func CheckOut(c *gin.Context) {
 		}
 	}()
 
-
-	var rzpOrderId string
-	if paymentMethod == "ONLINE" {
-		rzpOrderId, err = PaymentHandler(orderID, totalAmount)
-		if err != nil {
-			c.JSON(500, gin.H{
-				"status": "Fail",
-				"error":  fmt.Sprintf("Failed to create orderId: %v", err),
-				"code":   500,
-			})
-			tx.Rollback()
-			return
-		}
-	}
-
-	// Inserting  into the database****
+	// Create  order
 	order := models.Order{
 		Id:                 orderID,
 		UserId:             userID,
@@ -140,6 +124,7 @@ func CheckOut(c *gin.Context) {
 		ShippingCharge:     float32(shippingCharge),
 		OrderDate:          time.Now(),
 		CouponCode:         couponCode,
+		PaymentStatus:      "pending",
 	}
 	if err := tx.Create(&order).Error; err != nil {
 		tx.Rollback()
@@ -151,6 +136,7 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
+	// Create order items ,updte prdct stock
 	for _, val := range cartItems {
 		orderItem := models.OrderItems{
 			OrderId:     orderID,
@@ -160,8 +146,8 @@ func CheckOut(c *gin.Context) {
 			OrderStatus: "pending",
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
-			ProductName: val.Product.Name,                   
-			Category:    val.Product.Category.Category_name, 
+			ProductName: val.Product.Name,
+			Category:    val.Product.Category.Category_name,
 		}
 		if err := tx.Create(&orderItem).Error; err != nil {
 			tx.Rollback()
@@ -173,7 +159,7 @@ func CheckOut(c *gin.Context) {
 			return
 		}
 
-		// Manage the stock for COD******
+		// Manage stock COD
 		var product models.Products
 		tx.First(&product, val.ProductId)
 		product.Quantity -= int(val.Quantity)
@@ -188,7 +174,7 @@ func CheckOut(c *gin.Context) {
 		}
 	}
 
-	// Delete all items from user cart*****
+	// Delete  cart itms
 	if err := tx.Where("user_id =?", userID).Delete(&models.Cart{}).Error; err != nil {
 		tx.Rollback()
 		c.JSON(500, gin.H{
@@ -199,7 +185,7 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
-	// Commit transaction if no error
+	// Commit
 	if err := tx.Commit().Error; err != nil {
 		tx.Rollback()
 		c.JSON(500, gin.H{
@@ -210,24 +196,144 @@ func CheckOut(c *gin.Context) {
 		return
 	}
 
-	// Success Response
-	if paymentMethod == "COD" {
-		c.JSON(200, gin.H{
-			"status":         "Success",
-			"message":        "Order placed successfully. Order will arrive within 4 days.",
-			"payment":        "COD",
-			"totalAmount":    totalAmount,
-			"shippingCharge": shippingCharge,
-			"discount":       discountAmount,
-		})
-	} else if paymentMethod == "ONLINE" {
+	// payment
+	if paymentMethod == "ONLINE" {
+		paymentDetails := models.PaymentDetails{
+			PaymentAmount: int(totalAmount),
+			PaymentStatus: "pending",
+		}
+		initializer.DB.Create(&paymentDetails)
+
+		razorId, err := PaymentHandler(orderID, totalAmount)
+
+		fmt.Println("*****************", razorId)
+
+		razorpayPaymentID = razorId
+
+		if err != nil {
+			initializer.DB.Model(&paymentDetails).Update("PaymentStatus", "Failed")
+			c.JSON(400, gin.H{
+				"status": "Fail",
+				"error":  err,
+			})
+			return
+		}
+
+		receiptID := generateReceiptID()
+		paymentUpdate := models.PaymentDetails{
+			OrderID:       razorId,
+			PaymentAmount: int(totalAmount),
+			Receipt:       uint(receiptID),
+			PaymentStatus: "Pending",
+		}
+		initializer.DB.Create(&paymentUpdate)
+
 		c.JSON(200, gin.H{
 			"status":         "Success",
 			"message":        "Please complete the payment",
+			"orderId":        razorId,
 			"totalAmount":    totalAmount,
-			"orderId":        rzpOrderId,
-			"shippingCharge": "you are eligible for free shiping",
-			"discount":       discountAmount,
+			"shippingCharge": shippingCharge,
+		})
+		return
+	}
+
+	// COD***
+	c.JSON(200, gin.H{
+		"status":         "Success",
+		"message":        "Order placed successfully. Order will arrive within 4 days.",
+		"payment":        "COD",
+		"totalAmount":    totalAmount,
+		"shippingCharge": shippingCharge,
+		"discount":       discountAmount,
+	})
+}
+
+// receipt ID***
+func generateReceiptID() uint {
+	randomBytes := make([]byte, 8)
+	if _, err := rand.Read(randomBytes); err != nil {
+		return 0
+	}
+	return uint(time.Now().UnixNano())
+}
+
+func OrderDetails(c *gin.Context) {
+	orderID := c.Param("ID")
+
+	var order models.Order
+	var orderItems []models.OrderItems
+	var paymentDetails models.PaymentDetails
+
+	// Fetch order details***
+	if err := initializer.DB.Where("id = ?", orderID).First(&order).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"status": "Fail",
+			"error":  "Order not found",
+			"code":   http.StatusNotFound,
+		})
+		return
+	}
+
+	// Fetch order items***
+	if err := initializer.DB.Where("order_id = ?", orderID).Preload("Product").Preload("Order").Find(&orderItems).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"status": "Fail",
+			"error":  "Failed to fetch order items",
+			"code":   http.StatusInternalServerError,
+		})
+		return
+	}
+
+	paymentStatus := "Failed"
+
+	fmt.Println("***********1", paymentStatus)
+
+	if err := initializer.DB.Where("order_id = ?", razorpayPaymentID).First(&paymentDetails).Error; err == nil {
+		// If PaymentID is available, set status to success
+		if paymentDetails.PaymentId != "" {
+
+			paymentStatus = "Success"
+			fmt.Println("***********2", paymentStatus)
+		}
+	}
+
+	// Calculate total amount before discount
+	var totalAmountBeforeDiscount float64
+	for _, item := range orderItems {
+		totalAmountBeforeDiscount += item.SubTotal
+	}
+
+	totalDiscount := totalAmountBeforeDiscount - order.OrderAmount
+
+	// Prepare order details
+	orderDetails := gin.H{
+		"userId":                   order.UserId,
+		"orderAmount":              totalAmountBeforeDiscount,
+		"couponCode":               order.CouponCode,
+		"totalAmountAfterDiscount": order.OrderAmount,
+		"orderDate":                order.OrderDate,
+		"totalDiscount":            totalDiscount,
+		"paymentStatus":            paymentStatus,
+		"items":                    []gin.H{},
+	}
+
+	// Add order items to response
+	for _, item := range orderItems {
+		orderDetails["items"] = append(orderDetails["items"].([]gin.H), gin.H{
+			"orderItemId": item.Id,
+			"productId":   item.ProductId,
+			"productName": item.Product.Name,
+			"orderDate":   item.Order.OrderDate,
+			"amount":      item.SubTotal,
+			"quantity":    item.Quantity,
+			"orderStatus": item.OrderStatus,
+			"addressId":   item.Order.AddressId,
 		})
 	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":       orderDetails,
+		"paymentStatus": paymentStatus,
+	})
 }

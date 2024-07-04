@@ -69,7 +69,7 @@ func BestSelling(c *gin.Context) {
 		}
 	}
 	c.JSON(200, gin.H{
-		"data":   BestList,
-		"status": "Success",
+		"Best Selling": BestList,
+		"status":       "Success",
 	})
 }

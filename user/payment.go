@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"project/initializer"
 	"project/models"
@@ -16,7 +17,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// PaymentHandler initiates payment with Razorpay
+// initiates payment with Razorpay
 func PaymentHandler(orderID string, amount float64) (string, error) {
 	client := razorpay.NewClient(os.Getenv("RAZORPAY_KEY"), os.Getenv("RAZORPAY_SECRET"))
 	orderParams := map[string]interface{}{
@@ -37,6 +38,7 @@ func PaymentHandler(orderID string, amount float64) (string, error) {
 	return razorID, nil
 }
 
+// PaymentConfirmation
 // PaymentConfirmation handles Razorpay payment confirmation
 func PaymentConfirmation(c *gin.Context) {
 	var paymentDetails = make(map[string]string)
@@ -52,18 +54,18 @@ func PaymentConfirmation(c *gin.Context) {
 	// Verify Razorpay payment signature
 	err := RazorPaymentVerification(paymentDetails["signature"], paymentDetails["order_id"], paymentDetails["payment_id"])
 	if err != nil {
-		c.JSON(400, gin.H{
-			"status": "fail",
-			"error":  "Payment verification failed",
-			"code":   400,
-		})
-		return
+
+		updatePaymentStatus(paymentDetails["order_id"], paymentDetails["payment_id"], "failed")
+		// // c.JSON(400, gin.H{
+		// // 	"status": "fail",
+		// // 	"error":  "Payment verification failed",
+		// 	"code":   400,
+		// })
+		// return
 	}
 
-	// Debug: Log the order_id being used
 	fmt.Printf("Fetching payment details for order_id: %s\n", paymentDetails["order_id"])
 
-	// Fetch or create payment details from the database based on order_id
 	var paymentStore models.PaymentDetails
 	if err := initializer.DB.Where("order_id = ?", paymentDetails["order_id"]).First(&paymentStore).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -72,7 +74,6 @@ func PaymentConfirmation(c *gin.Context) {
 				OrderID:       paymentDetails["order_id"],
 				PaymentId:     paymentDetails["payment_id"],
 				PaymentStatus: "success",
-			
 			}
 			if err := initializer.DB.Create(&paymentStore).Error; err != nil {
 				c.JSON(500, gin.H{
@@ -158,4 +159,47 @@ func RazorPaymentVerification(sign, orderId, paymentId string) error {
 	} else {
 		return nil
 	}
+}
+
+// updatePaymentStatus updates the payment status in the database
+//
+//	func updatePaymentStatus(orderID, paymentID, status string) {
+//		var paymentStore models.PaymentDetails
+//		if err := initializer.DB.Where("order_id = ?", orderID).First(&paymentStore).Error; err != nil {
+//			if errors.Is(err, gorm.ErrRecordNotFound) {
+//				// Record not found, create a new one
+//				paymentStore = models.PaymentDetails{
+//					OrderID:       orderID,
+//					PaymentId:     paymentID,
+//					PaymentStatus: status,
+//				}
+//				initializer.DB.Create(&paymentStore)
+//			} else {
+//				// Some other error occurred
+//				fmt.Printf("Error fetching payment details: %v\n", err)
+//			}
+//		} else {
+//			// Update existing payment details
+//			paymentStore.PaymentId = paymentID
+//			paymentStore.PaymentStatus = status
+//			initializer.DB.Save(&paymentStore)
+//		}
+//		//new today
+//		var order models.Order
+//		if err := initializer.DB.Where("id = ?", orderID).First(&order).Error; err == nil {
+//			order.PaymentStatus = status
+//			initializer.DB.Save(&order)
+//		}
+//	}
+func updatePaymentStatus(orderID string, paymentID string, status string) error {
+	// Assuming initializer.DB is your database connection
+	result := initializer.DB.Model(&models.PaymentDetails{}).
+		Where("order_id = ? AND payment_id = ?", orderID, paymentID).
+		Update("payment_status", status)
+
+	if result.Error != nil {
+		log.Printf("Failed to update payment status: %v", result.Error)
+	}
+
+	return result.Error
 }

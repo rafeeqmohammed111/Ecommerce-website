@@ -18,6 +18,7 @@ func CategoryList(c *gin.Context) {
 			"Category_name":        v.Category_name,
 			"Category_description": v.Category_description,
 			"Category_status":      v.Blocking,
+			
 		})
 	}
 }

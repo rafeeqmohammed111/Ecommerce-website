@@ -9,6 +9,8 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	// "gorm.io/gorm"
+	// "gorm.io/gorm"
 )
 
 // User orders list show fetching from order table
@@ -35,6 +37,7 @@ func OrderView(c *gin.Context) {
 			"paymentMethod": v.OrderPaymentMethod,
 			"orderAmount":   v.OrderAmount,
 			"orderDate":     v.OrderDate,
+			// "paymentStatus": v.PaymentStatus,
 		})
 	}
 	c.JSON(200, gin.H{
@@ -43,17 +46,6 @@ func OrderView(c *gin.Context) {
 	})
 }
 
-// Order placement response with details
-// @Summary Place Order
-// @Description Place an order and return order details
-// @Tags Order
-// @Accept json
-// @Produce json
-// @Security ApiKeyAuth
-// @Param order body models.Order true "Order"
-// @Success 200 {json} SuccessResponse
-// @Failure 400 {json} ErrorResponse
-// @Router /placeorder [post]
 func PlaceOrder(c *gin.Context) {
 	var order models.Order
 	if err := c.ShouldBindJSON(&order); err != nil {
@@ -64,6 +56,8 @@ func PlaceOrder(c *gin.Context) {
 		})
 		return
 	}
+
+	order.PaymentStatus = "pending"
 
 	if err := initializer.DB.Create(&order).Error; err != nil {
 		c.JSON(500, gin.H{
@@ -314,6 +308,7 @@ func UserOrderStatus(c *gin.Context) {
 			"couponDiscount":         couponDiscount,
 			"totalAmountAfterCoupon": order.OrderAmount - float64(couponDiscount),
 			"orderDate":              order.OrderDate,
+			"staus":                  "pending",
 		})
 	}
 
@@ -323,70 +318,157 @@ func UserOrderStatus(c *gin.Context) {
 	})
 }
 
-func OrderDetails(c *gin.Context) {
+// func OrderDetails(c *gin.Context) {
+// 	orderID := c.Param("ID")
 
-	orderID := c.Param("ID")
+// 	var order models.Order
+// 	var orderItems []models.OrderItems
+// 	var paymentDetails models.PaymentDetails
 
-	var order models.Order
-	var orderItems []models.OrderItems
+// 	// Fetch the order details
+// 	if err := initializer.DB.Where("id = ?", orderID).First(&order).Error; err != nil {
+// 		c.JSON(http.StatusNotFound, gin.H{
+// 			"status": "Fail",
+// 			"error":  "Order not found",
+// 			"code":   http.StatusNotFound,
+// 		})
+// 		return
+// 	}
 
-	if err := initializer.DB.Where("id = ?", orderID).First(&order).Error; err != nil {
-		c.JSON(404, gin.H{
-			"status": "Fail",
-			"error":  "Order not found",
-			"code":   404,
-		})
-		return
-	}
+// 	// Fetch the order items
+// 	if err := initializer.DB.Where("order_id = ?", orderID).Find(&orderItems).Error; err != nil {
+// 		c.JSON(http.StatusInternalServerError, gin.H{
+// 			"status": "Fail",
+// 			"error":  "Failed to fetch order items",
+// 			"code":   http.StatusInternalServerError,
+// 		})
+// 		return
+// 	}
 
-	if err := initializer.DB.Where("order_id = ?", orderID).Find(&orderItems).Error; err != nil {
-		c.JSON(500, gin.H{
-			"status": "Fail",
-			"error":  "Failed to fetch order items",
-			"code":   500,
-		})
-		return
-	}
+// 	// Fetch the payment details
+// 	paymentStatus := "pending"
+// 	if err := initializer.DB.Where("order_id = ?", orderID).First(&paymentDetails).Error; err != nil {
+// 		if err != gorm.ErrRecordNotFound {
+// 			c.JSON(http.StatusInternalServerError, gin.H{
+// 				"status": "Fail",
+// 				"error":  "Failed to fetch payment details",
+// 				"code":   http.StatusInternalServerError,
+// 			})
+// 			return
+// 		}
+// 	} else {
+// 		paymentStatus = paymentDetails.PaymentStatus
+// 	}
 
-	var totalAmountBeforeDiscount float64
-	for _, item := range orderItems {
-		totalAmountBeforeDiscount += item.SubTotal
-	}
+// 	// Calculate total amount before discount
+// 	var totalAmountBeforeDiscount float64
+// 	for _, item := range orderItems {
+// 		totalAmountBeforeDiscount += item.SubTotal
+// 	}
 
-	totalDiscount := totalAmountBeforeDiscount - order.OrderAmount
+// 	totalDiscount := totalAmountBeforeDiscount - order.OrderAmount
 
-	orderDetails := gin.H{
-		"userId":                   order.UserId,
-		"orderAmount":              totalAmountBeforeDiscount,
-		"couponCode":               order.CouponCode,
-		"totalAmountAfterDiscount": order.OrderAmount,
-		"orderDate":                order.OrderDate,
-		"totalDiscount":            totalDiscount,
-		"items":                    []gin.H{},
-	}
+// 	// Prepare the order details response
+// 	orderDetails := gin.H{
+// 		"userId":                   order.UserId,
+// 		"orderAmount":              totalAmountBeforeDiscount,
+// 		"couponCode":               order.CouponCode,
+// 		"totalAmountAfterDiscount": order.OrderAmount,
+// 		"orderDate":                order.OrderDate,
+// 		"totalDiscount":            totalDiscount,
+// 		"paymentStatus":            paymentStatus,
+// 		"items":                    []gin.H{},
+// 	}
 
-	for _, item := range orderItems {
-		product := models.Products{}
-		if err := initializer.DB.Where("id = ?", item.ProductId).First(&product).Error; err != nil {
-			c.JSON(500, gin.H{
-				"status": "Fail",
-				"error":  "Failed to fetch product details",
-				"code":   500,
-			})
-			return
-		}
-		orderDetails["items"] = append(orderDetails["items"].([]gin.H), gin.H{
-			"productId":   item.ProductId, //was
-			"productName": product.Name,
-			"itemId":      item.Id,
-			"quantity":    item.Quantity,
-			"status":      item.OrderStatus,
-			"amount":      item.SubTotal,
-		})
-	}
+// 	// Add order items to the response
+// 	for _, item := range orderItems {
+// 		product := models.Products{}
+// 		if err := initializer.DB.Where("id = ?", item.ProductId).First(&product).Error; err != nil {
+// 			c.JSON(http.StatusInternalServerError, gin.H{
+// 				"status": "Fail",
+// 				"error":  "Failed to fetch product details",
+// 				"code":   http.StatusInternalServerError,
+// 			})
+// 			return
+// 		}
+// 		orderDetails["items"] = append(orderDetails["items"].([]gin.H), gin.H{
+// 			"productId":   item.ProductId,
+// 			"productName": product.Name,
+// 			"itemId":      item.Id,
+// 			"quantity":    item.Quantity,
+// 			"status":      item.OrderStatus,
+// 			"amount":      item.SubTotal,
+// 		})
+// 	}
 
-	c.JSON(200, gin.H{
-		"status": "success",
-		"order":  orderDetails,
-	})
-}
+// 	// Return the order details response
+// 	c.JSON(http.StatusOK, gin.H{
+// 		"status": "success",
+// 		"order":  orderDetails,
+// 	})
+// }
+
+// //order details
+
+// // //new today
+
+// // func RetryPayment(c *gin.Context) {
+// // 	orderID := c.Query("order_id")
+
+// // 	if orderID == "" {
+// // 		c.JSON(400, gin.H{
+// // 			"status": "Fail",
+// // 			"error":  "Order ID is required",
+// // 			"code":   400,
+// // 		})
+// // 		return
+// // 	}
+
+// // 	var order models.Order
+// // 	if err := initializer.DB.Where("id = ?", orderID).Find(&order).Error; err != nil {
+// // 		c.JSON(404, gin.H{
+// // 			"status": "Fail",
+// // 			"error":  "Order not found",
+// // 			"code":   404,
+// // 		})
+// // 		return
+// // 	}
+
+// // 	if order.PaymentStatus != "pending" {
+// // 		c.JSON(400, gin.H{
+// // 			"status": "Fail",
+// // 			"error":  "Payment is not pending for this order",
+// // 			"code":   400,
+// // 		})
+// // 		return
+// // 	}
+
+// // 	// Call the payment handler to retry the payment
+// // 	rzpOrderId, err := PaymentHandler(order.Id, order.OrderAmount)
+// // 	if err != nil {
+// // 		// Log the error and return a failure response
+// // 		log.Println("Error processing payment:", err)
+// // 		c.JSON(500, gin.H{
+// // 			"status": "Fail",
+// // 			"error":  "Failed to process payment",
+// // 			"code":   500,
+// // 		})
+// // 		return
+// // 	}
+
+// // 	// Assuming the PaymentHandler returns without error upon successful payment
+// // 	order.PaymentStatus = "payment success"
+// // 	if err := initializer.DB.Save(&order).Error; err != nil {
+// // 		c.JSON(500, gin.H{
+// // 			"status": "Fail",
+// // 			"error":  "Failed to update order status",
+// // 			"code":   500,
+// // 		})
+// // 		return
+// // 	}
+
+// // 	c.JSON(200, gin.H{
+// // 		"status":  "success",
+// // 		"orderId": rzpOrderId,
+// // 	})
+// // }

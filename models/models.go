@@ -67,24 +67,26 @@ type Cart struct {
 	Quantity  uint
 }
 type Order struct {
-	Id                 string       `json:"id"`
-	UserId             uint         `json:"user_id"`
-	User               Users        `json:"user" gorm:"foreignKey:UserId"`
-	AddressId          int          `json:"address_id"`
-	Address            Address      `json:"address" gorm:"foreignKey:AddressId"`
-	CouponCode         string       `json:"coupon_code"`
-	OrderPaymentMethod string       `json:"order_payment_method"`
-	OrderAmount        float64      `json:"order_amount"`
-	TotalAmount        float64      `json:"total_amount"`
-	ShippingCharge     float32      `json:"shipping_charge"`
-	OrderStatus        string       `json:"order_status"`
-	OrderDate          time.Time    `json:"order_date"`
-	OrderUpdate        time.Time    `json:"order_update"`
-	CouponID           *uint        `json:"coupon_id"`
-	Coupon             *Coupon      `json:"coupon" gorm:"foreignKey:CouponID"`
-	OrderItems         []OrderItems `json:"order_items" gorm:"foreignKey:OrderId"`
-	CreatedAt          time.Time    `json:"created_at"`
-	UpdatedAt          time.Time    `json:"updated_at"`
+	Id                 string           `json:"id"`
+	UserId             uint             `json:"user_id"`
+	User               Users            `json:"user" gorm:"foreignKey:UserId"`
+	AddressId          int              `json:"address_id"`
+	Address            Address          `json:"address" gorm:"foreignKey:AddressId"`
+	CouponCode         string           `json:"coupon_code"`
+	OrderPaymentMethod string           `json:"order_payment_method"`
+	OrderAmount        float64          `json:"order_amount"`
+	TotalAmount        float64          `json:"total_amount"`
+	ShippingCharge     float32          `json:"shipping_charge"`
+	OrderStatus        string           `json:"order_status"`
+	OrderDate          time.Time        `json:"order_date"`
+	OrderUpdate        time.Time        `json:"order_update"`
+	CouponID           *uint            `json:"coupon_id"`
+	Coupon             *Coupon          `json:"coupon" gorm:"foreignKey:CouponID"`
+	OrderItems         []OrderItems     `json:"order_items" gorm:"foreignKey:OrderId"`
+	CreatedAt          time.Time        `json:"created_at"`
+	UpdatedAt          time.Time        `json:"updated_at"`
+	PaymentStatus      string           `json:"payment_status"`
+	PaymentDetails     []PaymentDetails `json:"payment_details" gorm:"foreignKey:OrderID"` // Relationship with PaymentDetails
 }
 
 type OrderItems struct {
@@ -131,12 +133,16 @@ type Offer struct {
 }
 
 type PaymentDetails struct {
-	gorm.Model
+	ID            uint      `gorm:"primaryKey"` // Primary key
 	OrderID       string    `gorm:"index;not null" json:"order_id"`
 	PaymentId     string    `gorm:"not null" json:"payment_id"`
 	PaymentStatus string    `gorm:"not null" json:"payment_status"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+	PaymentAmount int       `json:"payment_amount"`
+	Receipt       uint      `json:"receipt"`
+	Id            string    `json:"Id"`
+	Order         Order
 }
 
 type Wishlist struct {
