@@ -107,9 +107,10 @@ type OrderItems struct {
 
 type Wallet struct {
 	gorm.Model
-	UserId  uint    `json:"user_id"`
-	User    Users   `json:"user" gorm:"foreignKey:UserId"`
-	Balance float64 `json:"balance"`
+	UserId         uint    `json:"user_id"`
+	User           Users   `json:"user" gorm:"foreignKey:UserId"`
+	Balance        float64 `json:"balance"`
+	CreditedAmount float64 `json:"credit"`
 	// Code     string  `json:"code"`
 	// Discount float64 `json:"discount"`
 }

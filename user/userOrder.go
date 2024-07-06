@@ -1,7 +1,6 @@
 package user
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"project/initializer"
@@ -185,7 +184,6 @@ func CancelOrder(c *gin.Context) {
 	}
 
 	cancelAmount := orderItem.SubTotal
-	fmt.Println("========================================", cancelAmount)
 
 	if order.OrderAmount > cancelAmount {
 		order.OrderAmount -= cancelAmount
@@ -227,9 +225,6 @@ func CancelOrder(c *gin.Context) {
 			}
 		}
 
-		fmt.Println("Initial wallet balance:", wallet.Balance)
-		fmt.Println("Cancel amount to be added:", cancelAmount)
-
 		wallet.Balance += cancelAmount
 
 		if err := initializer.DB.Save(&wallet).Error; err != nil {
@@ -241,17 +236,39 @@ func CancelOrder(c *gin.Context) {
 			})
 			return
 		}
+	}
 
-		fmt.Println("Updated wallet balance:", wallet.Balance)
+	// Fetch updated order details
+	var orderItems []models.OrderItems
+	if err := initializer.DB.Where("order_id = ?", order.Id).Find(&orderItems).Error; err != nil {
+		c.JSON(400, gin.H{
+			"status": "Fail",
+			"error":  "Failed to fetch order items",
+			"code":   400,
+		})
+		return
+	}
+
+	var orderDetails []gin.H
+	for _, item := range orderItems {
+		orderDetails = append(orderDetails, gin.H{
+			"itemId":       item.Id,
+			"productId":    item.ProductId,
+			"quantity":     item.Quantity,
+			"subTotal":     item.SubTotal,
+			"orderStatus":  item.OrderStatus,
+			"cancelReason": item.OrderCancelReason,
+		})
 	}
 
 	c.JSON(200, gin.H{
 		"status":           "Success",
 		"message":          "Order item cancelled successfully",
-		"cancelled amount": cancelAmount,
+		"cancelled_amount": cancelAmount,
+		"order_amount":     order.OrderAmount,
+		"order_details":    orderDetails,
 	})
 }
-
 func UserOrderStatus(c *gin.Context) {
 	session := sessions.Default(c)
 	userID := session.Get("user_id").(uint)
@@ -278,9 +295,15 @@ func UserOrderStatus(c *gin.Context) {
 			return
 		}
 
+		totalOrderAmount := order.OrderAmount
+		cancelledAmount := 0.0
+
+		var orderDetails []gin.H
 		for _, item := range orderItems {
-			orderStatuses = append(orderStatuses, gin.H{
-				"orderId":      order.Id,
+			if item.OrderStatus == "cancelled" {
+				cancelledAmount += item.SubTotal
+			}
+			orderDetails = append(orderDetails, gin.H{
 				"itemId":       item.Id,
 				"productId":    item.ProductId,
 				"quantity":     item.Quantity,
@@ -289,6 +312,7 @@ func UserOrderStatus(c *gin.Context) {
 				"cancelReason": item.OrderCancelReason,
 			})
 		}
+		amountAfterCancellations := totalOrderAmount - cancelledAmount
 
 		couponDiscount := 0
 		if order.CouponCode != "" {
@@ -297,18 +321,21 @@ func UserOrderStatus(c *gin.Context) {
 				couponDiscount = int(coupon.Discount)
 			}
 		}
+		totalAmountAfterCoupon := amountAfterCancellations - float64(couponDiscount)
 
 		orderStatuses = append(orderStatuses, gin.H{
-			"orderId":                order.Id,
-			"userId":                 order.UserId,
-			"addressId":              order.AddressId,
-			"paymentMethod":          order.OrderPaymentMethod,
-			"orderAmount":            order.OrderAmount,
-			"couponCode":             order.CouponCode,
-			"couponDiscount":         couponDiscount,
-			"totalAmountAfterCoupon": order.OrderAmount - float64(couponDiscount),
-			"orderDate":              order.OrderDate,
-			"staus":                  "pending",
+			"orderId":                  order.Id,
+			"userId":                   order.UserId,
+			"addressId":                order.AddressId,
+			"paymentMethod":            order.OrderPaymentMethod,
+			"orderAmount":              order.OrderAmount,
+			"couponCode":               order.CouponCode,
+			"couponDiscount":           couponDiscount,
+			"amountAfterCancellations": amountAfterCancellations,
+			"totalAmountAfterCoupon":   totalAmountAfterCoupon,
+			"orderDate":                order.OrderDate,
+			"status":                   "pending",
+			"orderDetails":             orderDetails,
 		})
 	}
 
@@ -317,158 +344,3 @@ func UserOrderStatus(c *gin.Context) {
 		"orders": orderStatuses,
 	})
 }
-
-// func OrderDetails(c *gin.Context) {
-// 	orderID := c.Param("ID")
-
-// 	var order models.Order
-// 	var orderItems []models.OrderItems
-// 	var paymentDetails models.PaymentDetails
-
-// 	// Fetch the order details
-// 	if err := initializer.DB.Where("id = ?", orderID).First(&order).Error; err != nil {
-// 		c.JSON(http.StatusNotFound, gin.H{
-// 			"status": "Fail",
-// 			"error":  "Order not found",
-// 			"code":   http.StatusNotFound,
-// 		})
-// 		return
-// 	}
-
-// 	// Fetch the order items
-// 	if err := initializer.DB.Where("order_id = ?", orderID).Find(&orderItems).Error; err != nil {
-// 		c.JSON(http.StatusInternalServerError, gin.H{
-// 			"status": "Fail",
-// 			"error":  "Failed to fetch order items",
-// 			"code":   http.StatusInternalServerError,
-// 		})
-// 		return
-// 	}
-
-// 	// Fetch the payment details
-// 	paymentStatus := "pending"
-// 	if err := initializer.DB.Where("order_id = ?", orderID).First(&paymentDetails).Error; err != nil {
-// 		if err != gorm.ErrRecordNotFound {
-// 			c.JSON(http.StatusInternalServerError, gin.H{
-// 				"status": "Fail",
-// 				"error":  "Failed to fetch payment details",
-// 				"code":   http.StatusInternalServerError,
-// 			})
-// 			return
-// 		}
-// 	} else {
-// 		paymentStatus = paymentDetails.PaymentStatus
-// 	}
-
-// 	// Calculate total amount before discount
-// 	var totalAmountBeforeDiscount float64
-// 	for _, item := range orderItems {
-// 		totalAmountBeforeDiscount += item.SubTotal
-// 	}
-
-// 	totalDiscount := totalAmountBeforeDiscount - order.OrderAmount
-
-// 	// Prepare the order details response
-// 	orderDetails := gin.H{
-// 		"userId":                   order.UserId,
-// 		"orderAmount":              totalAmountBeforeDiscount,
-// 		"couponCode":               order.CouponCode,
-// 		"totalAmountAfterDiscount": order.OrderAmount,
-// 		"orderDate":                order.OrderDate,
-// 		"totalDiscount":            totalDiscount,
-// 		"paymentStatus":            paymentStatus,
-// 		"items":                    []gin.H{},
-// 	}
-
-// 	// Add order items to the response
-// 	for _, item := range orderItems {
-// 		product := models.Products{}
-// 		if err := initializer.DB.Where("id = ?", item.ProductId).First(&product).Error; err != nil {
-// 			c.JSON(http.StatusInternalServerError, gin.H{
-// 				"status": "Fail",
-// 				"error":  "Failed to fetch product details",
-// 				"code":   http.StatusInternalServerError,
-// 			})
-// 			return
-// 		}
-// 		orderDetails["items"] = append(orderDetails["items"].([]gin.H), gin.H{
-// 			"productId":   item.ProductId,
-// 			"productName": product.Name,
-// 			"itemId":      item.Id,
-// 			"quantity":    item.Quantity,
-// 			"status":      item.OrderStatus,
-// 			"amount":      item.SubTotal,
-// 		})
-// 	}
-
-// 	// Return the order details response
-// 	c.JSON(http.StatusOK, gin.H{
-// 		"status": "success",
-// 		"order":  orderDetails,
-// 	})
-// }
-
-// //order details
-
-// // //new today
-
-// // func RetryPayment(c *gin.Context) {
-// // 	orderID := c.Query("order_id")
-
-// // 	if orderID == "" {
-// // 		c.JSON(400, gin.H{
-// // 			"status": "Fail",
-// // 			"error":  "Order ID is required",
-// // 			"code":   400,
-// // 		})
-// // 		return
-// // 	}
-
-// // 	var order models.Order
-// // 	if err := initializer.DB.Where("id = ?", orderID).Find(&order).Error; err != nil {
-// // 		c.JSON(404, gin.H{
-// // 			"status": "Fail",
-// // 			"error":  "Order not found",
-// // 			"code":   404,
-// // 		})
-// // 		return
-// // 	}
-
-// // 	if order.PaymentStatus != "pending" {
-// // 		c.JSON(400, gin.H{
-// // 			"status": "Fail",
-// // 			"error":  "Payment is not pending for this order",
-// // 			"code":   400,
-// // 		})
-// // 		return
-// // 	}
-
-// // 	// Call the payment handler to retry the payment
-// // 	rzpOrderId, err := PaymentHandler(order.Id, order.OrderAmount)
-// // 	if err != nil {
-// // 		// Log the error and return a failure response
-// // 		log.Println("Error processing payment:", err)
-// // 		c.JSON(500, gin.H{
-// // 			"status": "Fail",
-// // 			"error":  "Failed to process payment",
-// // 			"code":   500,
-// // 		})
-// // 		return
-// // 	}
-
-// // 	// Assuming the PaymentHandler returns without error upon successful payment
-// // 	order.PaymentStatus = "payment success"
-// // 	if err := initializer.DB.Save(&order).Error; err != nil {
-// // 		c.JSON(500, gin.H{
-// // 			"status": "Fail",
-// // 			"error":  "Failed to update order status",
-// // 			"code":   500,
-// // 		})
-// // 		return
-// // 	}
-
-// // 	c.JSON(200, gin.H{
-// // 		"status":  "success",
-// // 		"orderId": rzpOrderId,
-// // 	})
-// // }

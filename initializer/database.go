@@ -31,5 +31,5 @@ func LoadDatabase() {
 	DB.AutoMigrate(&models.Offer{})
 	DB.AutoMigrate(&models.Coupon{})
 	DB.AutoMigrate(&models.Wishlist{})
-	DB.AutoMigrate(&models.SimplifiedProduct{})
+	// DB.AutoMigrate(&models.WalletTransaction{})
 }

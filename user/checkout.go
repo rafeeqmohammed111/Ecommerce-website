@@ -290,7 +290,7 @@ func OrderDetails(c *gin.Context) {
 	fmt.Println("***********1", paymentStatus)
 
 	if err := initializer.DB.Where("order_id = ?", razorpayPaymentID).First(&paymentDetails).Error; err == nil {
-		// If PaymentID is available, set status to success
+		
 		if paymentDetails.PaymentId != "" {
 
 			paymentStatus = "Success"

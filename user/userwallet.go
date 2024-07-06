@@ -100,5 +100,6 @@ func FetchCanceledOrdersAndUpdateWallet(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{
 		"yuour wallet Balance": wallet.Balance,
+		"credited amount":      wallet.CreditedAmount,
 	})
 }
