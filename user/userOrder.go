@@ -226,6 +226,7 @@ func CancelOrder(c *gin.Context) {
 		}
 
 		wallet.Balance += cancelAmount
+		wallet.CreditedAmount = cancelAmount
 
 		if err := initializer.DB.Save(&wallet).Error; err != nil {
 			log.Println("Error updating wallet:", err)
