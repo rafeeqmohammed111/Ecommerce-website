@@ -211,7 +211,7 @@ func CheckOut(c *gin.Context) {
 		razorpayPaymentID = razorId
 
 		if err != nil {
-			initializer.DB.Model(&paymentDetails).Update("PaymentStatus", "Failed")
+			initializer.DB.Model(&paymentDetails).Update("PaymentStatus", "faild")
 			c.JSON(400, gin.H{
 				"status": "Fail",
 				"error":  err,
@@ -285,7 +285,7 @@ func OrderDetails(c *gin.Context) {
 		return
 	}
 
-	paymentStatus := "Failed"
+	paymentStatus := "success" // faild to success
 
 	fmt.Println("***********1", paymentStatus)
 
