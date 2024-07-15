@@ -46,7 +46,7 @@
     }
     //================== send payment details to backend=============
     function sendPaymentDetails(orderId, paymentId, signature) {
-      fetch('http://localhost:8080/payment/confirm', {
+      fetch('https://aibak.shop/payment/confirm', {
         method: 'POST',
         headers: {  
           'Content-Type': 'application/json',
